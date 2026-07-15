@@ -4,6 +4,7 @@ import { motion, AnimatePresence, useMotionValue, useSpring, useTransform } from
 import { useStore, normalizeTemplate } from '../core/useStore.js';
 import { AppShell } from '../components/AppShell.jsx';
 import { Button } from '../components/Button.jsx';
+import Dialog from '../components/Dialog.jsx';
 import { useAuthStore } from '../store/authStore';
 import packageJson from '../../package.json';
 import aboutImage from '../assets/about.png';
@@ -102,6 +103,7 @@ export default function CatalogScreen({ navigate }) {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(8);
   const [selectedTemplate, setSelectedTemplate] = useState(null);
+  const [templateToDelete, setTemplateToDelete] = useState(null);
 
   useEffect(() => {
     setCurrentPage(1);
@@ -257,18 +259,19 @@ export default function CatalogScreen({ navigate }) {
     return filteredTemplates.slice(startIndex, startIndex + itemsPerPage);
   }, [filteredTemplates, currentPage, itemsPerPage]);
 
-  async function deleteTemplate(id, event) {
-    event.stopPropagation();
-    if (!window.confirm('Are you sure you want to delete this template?')) return;
+  async function confirmDeleteTemplate() {
+    if (!templateToDelete) return;
     try {
       const deleteMethod = useStore.getState().deleteTemplate;
-      const res = await deleteMethod(id, user?.id);
+      const res = await deleteMethod(templateToDelete, user?.id);
       if (!res.success) throw new Error(res.error);
-      setTemplates((current) => current.filter((template) => template.id !== id));
+      setTemplates((current) => current.filter((template) => template.id !== templateToDelete));
       showToast('Template deleted', 'success');
     } catch (err) {
       console.error(err);
       showToast('Failed to delete template: ' + err.message, 'error');
+    } finally {
+      setTemplateToDelete(null);
     }
   }
 
@@ -653,7 +656,7 @@ export default function CatalogScreen({ navigate }) {
                                 className="catalog-delete-button"
                                 title="Delete template"
                                 aria-label={`Delete ${template.name}`}
-                                onClick={(event) => { event.stopPropagation(); deleteTemplate(template.id, event); }}
+                                onClick={(event) => { event.stopPropagation(); setTemplateToDelete(template.id); }}
                               >
                                 <Trash2 size={15} />
                               </Button>
@@ -820,6 +823,21 @@ export default function CatalogScreen({ navigate }) {
           </div>
         </div>
       )}
+
+      <Dialog
+        isOpen={Boolean(templateToDelete)}
+        onClose={() => setTemplateToDelete(null)}
+        title="Delete Template?"
+        size="sm"
+        footer={
+          <>
+            <Button onClick={() => setTemplateToDelete(null)}>Cancel</Button>
+            <Button variant="danger" onClick={confirmDeleteTemplate}>Delete</Button>
+          </>
+        }
+      >
+        Are you sure you want to delete this template? This action cannot be undone.
+      </Dialog>
     </AppShell>
   );
 }

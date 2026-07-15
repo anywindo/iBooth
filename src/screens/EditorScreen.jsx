@@ -453,7 +453,7 @@ Instructions:
                 },
                 theme: {
                   type: "STRING",
-                  enum: ["General", "Wedding", "Birthday", "Corporate", "Holiday", "Other"]
+                  enum: ["General", "Wedding", "Birthday", "Graduation", "Anniversary", "Party & Festival", "Corporate", "Baby & Bridal Shower", "Retro & Vintage", "Seasonal & Holiday", "Movie", "Other"]
                 },
                 colorStyle: {
                   type: "STRING",
@@ -771,8 +771,14 @@ Instructions:
                   <option value="General">General</option>
                   <option value="Wedding">Wedding</option>
                   <option value="Birthday">Birthday</option>
+                  <option value="Graduation">Graduation</option>
+                  <option value="Anniversary">Anniversary</option>
+                  <option value="Party & Festival">Party & Festival</option>
                   <option value="Corporate">Corporate</option>
-                  <option value="Holiday">Holiday</option>
+                  <option value="Baby & Bridal Shower">Baby & Bridal Shower</option>
+                  <option value="Retro & Vintage">Retro & Vintage</option>
+                  <option value="Seasonal & Holiday">Seasonal & Holiday</option>
+                  <option value="Movie">Movie</option>
                   <option value="Other">Other</option>
                 </select>
               </label>

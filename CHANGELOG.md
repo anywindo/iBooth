@@ -1,4 +1,4 @@
-## [0.0.1-beta] - 2026-07-15 - Cloud Integration & Fixes
+## [0.0.1-beta] - 2026-07-16 - Cloud Integration, UI Polish & Fixes
 
 - We've officially moved our database to Supabase Cloud! The app is now fully connected to a live production database environment.
 - Security is key! New user sign-ups now require email confirmation to verify identity before logging in.
@@ -12,6 +12,11 @@
 - Cleaned up the browser's console logs to ensure your email addresses and account details stay strictly private.
 - Fixed an issue where reloading the page or returning from Google login would show a 404 error page.
 - Finally patched the issue where our developers thought they were allowed to sleep. Sleep is now officially deprecated in this beta.
+- Fixed the double-mirroring bug on the webcam capture so that captured photos correctly match the mirror preview.
+- Created a beautiful, reusable Dialog component with glassmorphism backdrop blur and smooth entrance animations.
+- Replaced all synchronous, blocking browser `confirm` and `alert` prompts with the new custom Dialog component and toast system.
+- Restored the dark/light mode toggle in the Booth Screen header.
+- Added more layout theme options (including Graduation, Movie, Anniversary, Retro, etc.) in the Editor and synced them with the Gemini AI metadata generation.
 
 ## [0.0.1-alpha] - 2026-07-15 - Initial Project Release
 

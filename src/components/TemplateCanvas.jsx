@@ -122,7 +122,7 @@ export async function drawTemplateToCanvas(template, canvas, captures = [], acti
 
     if (captures[index]) {
       const image = await loadImage(captures[index]);
-      drawFittedImage(context, image, 0, 0, slot.width, slot.height, slot.fit, slot.mirror);
+      drawFittedImage(context, image, 0, 0, slot.width, slot.height, slot.fit, false);
     } else {
       context.fillStyle = "#47625d";
       context.font = "700 34px Inter, sans-serif";

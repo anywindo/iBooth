@@ -5,6 +5,7 @@ import { formatMm, getTemplatePreset } from '../core/constants.js';
 import { AppShell } from '../components/AppShell.jsx';
 import { Button } from '../components/Button.jsx';
 import TemplateCanvas from '../components/TemplateCanvas.jsx';
+import Dialog from '../components/Dialog.jsx';
 import { motion } from 'framer-motion';
 
 function slug(value) {
@@ -45,6 +46,8 @@ export default function PreviewScreen({ navigate }) {
   const [includeBleed, setIncludeBleed] = useState(output.enableBleed);
   const [previewBleed, setPreviewBleed] = useState(output.bleed);
   const [previewBleedColor, setPreviewBleedColor] = useState(output.bleedColor);
+  const [showExitDialog, setShowExitDialog] = useState(false);
+  const [showNewSessionDialog, setShowNewSessionDialog] = useState(false);
 
   useEffect(() => {
     const node = paneRef.current;
@@ -179,12 +182,7 @@ export default function PreviewScreen({ navigate }) {
 
   const actions = (
     <>
-      <Button variant="warning" onClick={() => { 
-        if (window.confirm('Are you sure you want to start a new session? Your current photos will be discarded.')) {
-          setBooth(null); 
-          navigate(`/booth/${template.id}`, { state: { returnTo } }); 
-        }
-      }}>New Session</Button>
+      <Button variant="warning" onClick={() => setShowNewSessionDialog(true)}>New Session</Button>
     </>
   );
 
@@ -288,12 +286,7 @@ export default function PreviewScreen({ navigate }) {
           {/* Left Panel Controls */}
           <div className="booth-controls" style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-start' }}>
             <Button variant="secondary" onClick={() => navigate(`/booth/${template.id}`, { state: { returnTo } })}>Back to Booth</Button>
-            <Button variant="danger" style={{ marginLeft: '12px' }} onClick={() => { 
-              if (window.confirm('Are you sure you want to exit? Your current photos will be discarded.')) {
-                setBooth(null); 
-                navigate(returnTo); 
-              }
-            }}>Exit</Button>
+            <Button variant="danger" style={{ marginLeft: '12px' }} onClick={() => setShowExitDialog(true)}>Exit</Button>
           </div>
           
           {/* Right Panel Controls */}
@@ -303,6 +296,44 @@ export default function PreviewScreen({ navigate }) {
           </div>
         </motion.section>
       </main>
+
+      <Dialog
+        isOpen={showNewSessionDialog}
+        onClose={() => setShowNewSessionDialog(false)}
+        title="Start New Session?"
+        size="sm"
+        footer={
+          <>
+            <Button onClick={() => setShowNewSessionDialog(false)}>Cancel</Button>
+            <Button variant="warning" onClick={() => {
+              setShowNewSessionDialog(false);
+              setBooth(null);
+              navigate(`/booth/${template.id}`, { state: { returnTo } });
+            }}>New Session</Button>
+          </>
+        }
+      >
+        Are you sure you want to start a new session? Your current photos will be discarded.
+      </Dialog>
+
+      <Dialog
+        isOpen={showExitDialog}
+        onClose={() => setShowExitDialog(false)}
+        title="Discard Photos & Exit?"
+        size="sm"
+        footer={
+          <>
+            <Button onClick={() => setShowExitDialog(false)}>Cancel</Button>
+            <Button variant="danger" onClick={() => {
+              setShowExitDialog(false);
+              setBooth(null);
+              navigate(returnTo);
+            }}>Exit</Button>
+          </>
+        }
+      >
+        Are you sure you want to exit? Your current photos will be discarded.
+      </Dialog>
     </AppShell>
   );
 }

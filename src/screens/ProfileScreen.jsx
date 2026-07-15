@@ -10,6 +10,7 @@ import aboutImage from '../assets/about.png';
 import { TemplateThumbnail, getInitials, getRandomColor } from './CatalogScreen';
 import { TemplateDrawer } from '../components/TemplateDrawer';
 import { Button } from '../components/Button';
+import Dialog from '../components/Dialog';
 
 function CollapsibleSection({ title, note, noteClassName = "section-note", headingClassName = "section-heading", children, defaultCollapsed = false }) {
   const [collapsed, setCollapsed] = useState(defaultCollapsed);
@@ -94,11 +95,13 @@ export default function ProfileScreen({ navigate }) {
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [selectedStrip, setSelectedStrip] = useState(null);
   const [deleteStatus, setDeleteStatus] = useState(null);
+  const [stripToDelete, setStripToDelete] = useState(null);
 
   const fetchTemplatesMethod = useStore((store) => store.fetchTemplates);
   const deleteTemplateMethod = useStore((store) => store.deleteTemplate);
   const setTemplate = useStore((store) => store.setTemplate);
   const setSelectedSlotId = useStore((store) => store.setSelectedSlotId);
+  const showToast = useStore((store) => store.showToast);
 
   const loadTemplateToEditor = (template) => {
     if (!template) return;
@@ -116,23 +119,27 @@ export default function ProfileScreen({ navigate }) {
     navigate(`/booth/${normalized.id}`, { state: { returnTo: '/profile?tab=strips' } });
   };
 
-  const handleDeleteTemplate = async (templateId, event) => {
+  const handleDeleteTemplate = (templateId, event) => {
     event.stopPropagation();
-    if (window.confirm('Are you sure you want to delete this strip?')) {
-      const res = await deleteTemplateMethod(templateId, user?.id);
-      if (res.success) {
-        setDeleteStatus('Strip deleted successfully.');
-        setTimeout(() => setDeleteStatus(null), 3000);
-        // re-fetch strips
-        const response = await fetchTemplatesMethod(user?.id);
-        if (response.success) setUserStrips(response.data);
-        if (selectedStrip && selectedStrip.id === templateId) {
-           setSelectedStrip(null);
-        }
-      } else {
-        alert(res.error || 'Failed to delete template');
+    setStripToDelete(templateId);
+  };
+
+  const confirmDeleteStrip = async () => {
+    if (!stripToDelete) return;
+    const res = await deleteTemplateMethod(stripToDelete, user?.id);
+    if (res.success) {
+      setDeleteStatus('Strip deleted successfully.');
+      setTimeout(() => setDeleteStatus(null), 3000);
+      // re-fetch strips
+      const response = await fetchTemplatesMethod(user?.id);
+      if (response.success) setUserStrips(response.data);
+      if (selectedStrip && selectedStrip.id === stripToDelete) {
+         setSelectedStrip(null);
       }
+    } else {
+      showToast(res.error || 'Failed to delete template', 'error');
     }
+    setStripToDelete(null);
   };
 
   useEffect(() => {
@@ -884,6 +891,21 @@ export default function ProfileScreen({ navigate }) {
           />
         </div>
       )}
+
+      <Dialog
+        isOpen={Boolean(stripToDelete)}
+        onClose={() => setStripToDelete(null)}
+        title="Delete Strip?"
+        size="sm"
+        footer={
+          <>
+            <Button onClick={() => setStripToDelete(null)}>Cancel</Button>
+            <Button variant="danger" onClick={confirmDeleteStrip}>Delete</Button>
+          </>
+        }
+      >
+        Are you sure you want to delete this strip? This action cannot be undone.
+      </Dialog>
     </AppShell>
   );
 }

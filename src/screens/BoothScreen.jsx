@@ -4,6 +4,7 @@ import { useStore, storeFinalSession } from '../core/useStore.js';
 import { AppShell } from '../components/AppShell.jsx';
 import { Button } from '../components/Button.jsx';
 import TemplateCanvas, { drawTemplateToCanvas } from '../components/TemplateCanvas.jsx';
+import Dialog from '../components/Dialog.jsx';
 import { motion, AnimatePresence } from 'framer-motion';
 import rioImage from '../assets/rio.jpg';
 import shutterBeepSound from '../assets/SHUTTER BEEP.mp3';
@@ -119,6 +120,7 @@ export default function BoothScreen({ navigate }) {
   const [isAutoCapturing, setIsAutoCapturing] = useState(false);
   const [timerDuration, setTimerDuration] = useState(3);
   const [isMirrored, setIsMirrored] = useState(true);
+  const [showExitDialog, setShowExitDialog] = useState(false);
   const countdownIntervalRef = useRef(null);
   const autoCaptureTimeoutRef = useRef(null);
   const countdownAudioRef = useRef(new Audio(shutterBeepSound));
@@ -194,6 +196,13 @@ export default function BoothScreen({ navigate }) {
   }, [cameraStream]);
 
   useEffect(() => () => stopCameraStream(), [stopCameraStream]);
+
+  useEffect(() => {
+    const currentSlot = template?.slots?.[session?.currentIndex];
+    if (currentSlot) {
+      setIsMirrored(currentSlot.mirror ?? true);
+    }
+  }, [session?.currentIndex, template?.slots]);
 
   useEffect(() => {
     const node = previewWrapRef.current;
@@ -424,7 +433,7 @@ export default function BoothScreen({ navigate }) {
   );
 
   return (
-    <AppShell title="iBooth" subtitle={template.name} actions={actions} hideAppearance={true}>
+    <AppShell title="iBooth" subtitle={template.name} actions={actions}>
       <main className="booth-layout">
         <section className="booth-main">
           <div className="camera-pane">
@@ -551,11 +560,7 @@ export default function BoothScreen({ navigate }) {
         >
           {/* Left Panel Controls */}
           <div className="booth-controls" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <button className="danger" style={{ width: '80px', padding: '0 12px' }} onClick={() => {
-              if (window.confirm('Are you sure you want to exit? Your current photos will be discarded.')) {
-                navigate(returnTo);
-              }
-            }}>Exit</button>
+            <button className="danger" style={{ width: '80px', padding: '0 12px' }} onClick={() => setShowExitDialog(true)}>Exit</button>
             
             <div className="button-row" style={{ flex: 1, justifyContent: 'center', display: 'flex', gap: '8px' }}>
               {isAutoCapturing ? (
@@ -616,6 +621,24 @@ export default function BoothScreen({ navigate }) {
           </div>
         </motion.section>
       </main>
+
+      <Dialog
+        isOpen={showExitDialog}
+        onClose={() => setShowExitDialog(false)}
+        title="Discard Photos & Exit?"
+        size="sm"
+        footer={
+          <>
+            <Button onClick={() => setShowExitDialog(false)}>Cancel</Button>
+            <Button variant="danger" onClick={() => {
+              setShowExitDialog(false);
+              navigate(returnTo);
+            }}>Exit</Button>
+          </>
+        }
+      >
+        Are you sure you want to exit? Your current photos will be discarded.
+      </Dialog>
     </AppShell>
   );
 }
