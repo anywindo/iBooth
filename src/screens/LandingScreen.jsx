@@ -178,6 +178,27 @@ export default function LandingScreen() {
   const showToast = useStore((store) => store.showToast);
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
 
+  const [isInterrupted, setIsInterrupted] = useState(false);
+  const interruptTimeoutRef = useRef(null);
+
+  const handleInteraction = () => {
+    setIsInterrupted(true);
+    if (interruptTimeoutRef.current) {
+      clearTimeout(interruptTimeoutRef.current);
+    }
+    interruptTimeoutRef.current = setTimeout(() => {
+      setIsInterrupted(false);
+    }, 10000);
+  };
+
+  useEffect(() => {
+    return () => {
+      if (interruptTimeoutRef.current) {
+        clearTimeout(interruptTimeoutRef.current);
+      }
+    };
+  }, []);
+
   useEffect(() => {
     try {
       const templates = JSON.parse(localStorage.getItem('templates') || '[]');
@@ -209,6 +230,22 @@ export default function LandingScreen() {
       shutterAudioRef.current = null;
     };
   }, []);
+
+  useEffect(() => {
+    if (isInterrupted) return;
+
+    const timer = setTimeout(() => {
+      if (!containerRef.current) return;
+      const { clientWidth } = containerRef.current;
+      const nextIndex = (activeSlide + 1) % 3;
+      containerRef.current.scrollTo({
+        left: nextIndex * clientWidth,
+        behavior: 'smooth'
+      });
+    }, 5000);
+
+    return () => clearTimeout(timer);
+  }, [activeSlide, isInterrupted]);
 
   /*
   useEffect(() => {
@@ -292,7 +329,12 @@ export default function LandingScreen() {
       statusBar={<div>iBooth v{packageJson.version}</div>}
       statusBarRight={<div>Part of <a href="https://arwndoprtma.space" target="_blank" rel="noopener noreferrer" style={{ color: 'inherit', textDecoration: 'none' }}>arwndoprtma.space</a></div>}
     >
-      <div style={{ position: 'relative', width: '100%', height: '100%', overflow: 'hidden' }}>
+      <div
+        style={{ position: 'relative', width: '100%', height: '100%', overflow: 'hidden' }}
+        onPointerDown={handleInteraction}
+        onWheel={handleInteraction}
+        onKeyDown={handleInteraction}
+      >
         <main
           ref={containerRef}
           onScroll={handleScroll}
