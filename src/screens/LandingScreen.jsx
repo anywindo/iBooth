@@ -177,6 +177,7 @@ export default function LandingScreen() {
   const shutterAudioRef = useRef(null);
   const showToast = useStore((store) => store.showToast);
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const fetchTemplates = useStore((store) => store.fetchTemplates);
 
   const [isInterrupted, setIsInterrupted] = useState(false);
   const interruptTimeoutRef = useRef(null);
@@ -200,17 +201,44 @@ export default function LandingScreen() {
   }, []);
 
   useEffect(() => {
-    try {
-      const templates = JSON.parse(localStorage.getItem('templates') || '[]');
-      const uniqueUsers = new Set(templates.map((t) => t.owner_id || 'local-user')).size;
-      setStats({
-        users: uniqueUsers,
-        templates: templates.length
-      });
-    } catch (e) {
-      console.error('Failed to load stats', e);
+    let active = true;
+    async function loadStats() {
+      try {
+        const res = await fetchTemplates();
+        if (!active) return;
+        if (res.success && res.data && res.data.length > 0) {
+          const templates = res.data;
+          const uniqueUsers = new Set(templates.map((t) => t.owner_id || 'local-user')).size;
+          setStats({
+            users: uniqueUsers,
+            templates: templates.length
+          });
+        } else {
+          // Fallback to local storage if empty
+          const localTemplates = JSON.parse(localStorage.getItem('templates') || '[]');
+          const uniqueUsers = new Set(localTemplates.map((t) => t.owner_id || 'local-user')).size;
+          setStats({
+            users: uniqueUsers,
+            templates: localTemplates.length
+          });
+        }
+      } catch (e) {
+        console.error('Failed to load stats', e);
+        if (!active) return;
+        // Fallback
+        const localTemplates = JSON.parse(localStorage.getItem('templates') || '[]');
+        const uniqueUsers = new Set(localTemplates.map((t) => t.owner_id || 'local-user')).size;
+        setStats({
+          users: uniqueUsers,
+          templates: localTemplates.length
+        });
+      }
     }
-  }, []);
+    loadStats();
+    return () => {
+      active = false;
+    };
+  }, [fetchTemplates]);
 
   const handleEditorClick = () => {
     if (!isAuthenticated) {
