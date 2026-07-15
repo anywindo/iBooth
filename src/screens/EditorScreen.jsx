@@ -119,10 +119,13 @@ export default function EditorScreen({ navigate }) {
   const stageRef = useRef(null);
   const importRef = useRef(null);
   const frameRef = useRef(null);
+  const rulerHRef = useRef(null);
+  const rulerVRef = useRef(null);
   const template = useStore((store) => store.template);
   const selectedSlotId = useStore((store) => store.selectedSlotId);
   const zoom = useStore((store) => store.zoom);
   const pan = useStore((store) => store.pan);
+  const theme = useStore((store) => store.theme);
   const setTemplate = useStore((store) => store.setTemplate);
   const setSelectedSlotId = useStore((store) => store.setSelectedSlotId);
   const setZoom = useStore((store) => store.setZoom);
@@ -275,6 +278,124 @@ export default function EditorScreen({ navigate }) {
       scroller.removeEventListener('touchmove', handleTouchMove);
     };
   }, [undo, redo]);
+
+  useEffect(() => {
+    const canvasH = rulerHRef.current;
+    const canvasV = rulerVRef.current;
+    if (!canvasH || !canvasV) return;
+
+    const ctxH = canvasH.getContext('2d');
+    const ctxV = canvasV.getContext('2d');
+    if (!ctxH || !ctxV) return;
+
+    const dpr = window.devicePixelRatio || 1;
+    const w = Math.max(0, viewport.width);
+    const h = Math.max(0, viewport.height);
+
+    canvasH.width = w * dpr;
+    canvasH.height = 24 * dpr;
+    canvasH.style.width = `${w}px`;
+    canvasH.style.height = `24px`;
+    ctxH.scale(dpr, dpr);
+
+    canvasV.width = 24 * dpr;
+    canvasV.height = h * dpr;
+    canvasV.style.width = `24px`;
+    canvasV.style.height = `${h}px`;
+    ctxV.scale(dpr, dpr);
+
+    const isDark = theme === 'dark';
+    const bgColor = isDark ? 'rgba(18, 22, 27, 0.96)' : 'rgba(251, 251, 247, 0.92)';
+    const textColor = isDark ? '#9aa5b2' : '#64748b';
+    const tickColor = isDark ? '#2b3440' : '#cbd5e1';
+
+    // Draw Horizontal Ruler Background
+    ctxH.fillStyle = bgColor;
+    ctxH.fillRect(0, 0, w, 24);
+
+    // Draw Vertical Ruler Background
+    ctxV.fillStyle = bgColor;
+    ctxV.fillRect(0, 0, 24, h);
+
+    ctxH.strokeStyle = tickColor;
+    ctxH.lineWidth = 1;
+    ctxV.strokeStyle = tickColor;
+    ctxV.lineWidth = 1;
+
+    ctxH.fillStyle = textColor;
+    ctxH.font = '9px Inter, sans-serif';
+    ctxH.textAlign = 'left';
+    ctxH.textBaseline = 'top';
+
+    ctxV.fillStyle = textColor;
+    ctxV.font = '9px Inter, sans-serif';
+    ctxV.textAlign = 'left';
+    ctxV.textBaseline = 'top';
+
+    const stepSizePx = rulerStepPx * zoom;
+    
+    // Draw Horizontal Ticks
+    const startIdx = Math.floor(-stageLeft / stepSizePx);
+    const endIdx = Math.ceil((w - stageLeft) / stepSizePx);
+
+    for (let i = startIdx; i <= endIdx; i++) {
+      const x = stageLeft + i * stepSizePx;
+      if (x < 0 || x > w) continue;
+
+      // Major tick
+      ctxH.beginPath();
+      ctxH.moveTo(x, 12);
+      ctxH.lineTo(x, 24);
+      ctxH.stroke();
+
+      const label = String(i * rulerLabelStep);
+      ctxH.fillText(label, x + 3, 2);
+
+      // Sub-ticks
+      for (let j = 1; j < 10; j++) {
+        const subX = x + j * (stepSizePx / 10);
+        if (subX >= 0 && subX <= w) {
+          ctxH.beginPath();
+          ctxH.moveTo(subX, j === 5 ? 16 : 20);
+          ctxH.lineTo(subX, 24);
+          ctxH.stroke();
+        }
+      }
+    }
+
+    // Draw Vertical Ticks
+    const startIdxY = Math.floor(-stageTop / stepSizePx);
+    const endIdxY = Math.ceil((h - stageTop) / stepSizePx);
+
+    for (let i = startIdxY; i <= endIdxY; i++) {
+      const y = stageTop + i * stepSizePx;
+      if (y < 0 || y > h) continue;
+
+      // Major tick
+      ctxV.beginPath();
+      ctxV.moveTo(12, y);
+      ctxV.lineTo(24, y);
+      ctxV.stroke();
+
+      const label = String(i * rulerLabelStep);
+      ctxV.save();
+      ctxV.translate(3, y + 3);
+      ctxV.rotate(-Math.PI / 2);
+      ctxV.fillText(label, 0, 0);
+      ctxV.restore();
+
+      // Sub-ticks
+      for (let j = 1; j < 10; j++) {
+        const subY = y + j * (stepSizePx / 10);
+        if (subY >= 0 && subY <= h) {
+          ctxV.beginPath();
+          ctxV.moveTo(j === 5 ? 16 : 20, subY);
+          ctxV.lineTo(24, subY);
+          ctxV.stroke();
+        }
+      }
+    }
+  }, [viewport, stageLeft, stageTop, zoom, rulerStepPx, rulerLabelStep, theme]);
 
   const ppi = template.dpi || selectedPreset.dpi;
   const bleedPixels = template.enableBleed ? Math.round((template.bleed || 2) / 25.4 * ppi) : 0;
@@ -892,6 +1013,10 @@ Instructions:
           exit={{ opacity: 0, y: -10 }}
           transition={{ duration: 0.2 }}
         >
+          <div className="ruler-corner" />
+          <canvas ref={rulerHRef} className="ruler-x" />
+          <canvas ref={rulerVRef} className="ruler-y" />
+
           <motion.div
             ref={scrollerRef}
             className="canvas-scroller"

@@ -1,4 +1,4 @@
-## [0.0.1-beta] - 2026-07-16 - Cloud Integration, UI Polish & Fixes
+## [0.0.1-beta] - 2026-07-N/A - Cloud Integration, UI Polish & Fixes
 
 - We've officially moved our database to Supabase Cloud! The app is now fully connected to a live production database environment.
 - Security is key! New user sign-ups now require email confirmation to verify identity before logging in.
