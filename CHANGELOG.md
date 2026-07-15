@@ -1,6 +1,7 @@
 ## [0.0.1-beta] - 2026-07-N/A - Cloud Integration, UI Polish & Fixes
 
-- We've officially moved our database to Supabase Cloud! The app is now fully connected to a live production database environment.
+- Improved the UX/UI.
+- Enhanced our photo strip editor and made significant improvements to its stability and functionality.
 - Security is key! New user sign-ups now require email confirmation to verify identity before logging in.
 - We've added strict password requirements (uppercase, lowercase, number, and special character) to keep accounts secure.
 - Added custom HTML email templates for all auth emails (Welcome, Reset Password, Magic Links, and Verification Codes) powered by Resend.

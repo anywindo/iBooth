@@ -166,6 +166,27 @@ export default function EditorScreen({ navigate }) {
     [template, selectedPreset, canvasUnit]
   );
 
+  const stageLeft = (viewport.width - template.width * zoom) / 2 + pan.x;
+  const stageTop = (viewport.height - template.height * zoom) / 2 + pan.y;
+
+  const currentDpi = template.dpi || selectedPreset.dpi || 300;
+
+  let rulerStepPx = 100;
+  let rulerLabelStep = 100;
+  if (canvasUnit === 'mm') {
+    rulerStepPx = (currentDpi / 25.4) * 10;
+    rulerLabelStep = 10;
+  } else if (canvasUnit === 'in') {
+    rulerStepPx = currentDpi;
+    rulerLabelStep = 1;
+  }
+
+  const numTicksX = Math.floor(template.width / rulerStepPx);
+  const numTicksY = Math.floor(template.height / rulerStepPx);
+
+  const ppi = template.dpi || selectedPreset.dpi;
+  const bleedPixels = template.enableBleed ? Math.round((template.bleed || 2) / 25.4 * ppi) : 0;
+
   const previousSaveStatus = useRef(saveStatus);
 
   useEffect(() => {
@@ -397,11 +418,7 @@ export default function EditorScreen({ navigate }) {
     }
   }, [viewport, stageLeft, stageTop, zoom, rulerStepPx, rulerLabelStep, theme]);
 
-  const ppi = template.dpi || selectedPreset.dpi;
-  const bleedPixels = template.enableBleed ? Math.round((template.bleed || 2) / 25.4 * ppi) : 0;
 
-  const stageLeft = (viewport.width - template.width * zoom) / 2 + pan.x;
-  const stageTop = (viewport.height - template.height * zoom) / 2 + pan.y;
 
   function applyAiResult(nextTemplate, result) {
     updateTemplate({ ...nextTemplate, slots: result.slots });
@@ -866,20 +883,7 @@ Instructions:
     </>
   );
 
-  const currentDpi = template.dpi || selectedPreset.dpi || 300;
 
-  let rulerStepPx = 100;
-  let rulerLabelStep = 100;
-  if (canvasUnit === 'mm') {
-    rulerStepPx = (currentDpi / 25.4) * 10;
-    rulerLabelStep = 10;
-  } else if (canvasUnit === 'in') {
-    rulerStepPx = currentDpi;
-    rulerLabelStep = 1;
-  }
-
-  const numTicksX = Math.floor(template.width / rulerStepPx);
-  const numTicksY = Math.floor(template.height / rulerStepPx);
 
   return (
     <AppShell
