@@ -146,12 +146,12 @@ export default function EditorScreen({ navigate }) {
     template.id === 'default-template' ? 'unsaved' : 'saved'
   ));
   const [isGeneratingMetadata, setIsGeneratingMetadata] = useState(false);
-  const [showResumeModal, setShowResumeModal] = useState(() => {
-    // Show prompt if we didn't come from an explicit edit action (where returnTo is set to '/catalog')
-    // and if there's a template in the store that isn't completely untouched.
+  useEffect(() => {
     const isExplicitAction = location.state?.isExplicitEdit;
-    return !isExplicitAction;
-  });
+    if (!isExplicitAction) {
+      resetTemplate();
+    }
+  }, [location.state?.isExplicitEdit, resetTemplate]);
 
   const selectedSlot = useMemo(
     () => template.slots.find((slot) => slot.id === selectedSlotId) || null,
@@ -369,7 +369,11 @@ export default function EditorScreen({ navigate }) {
       event.target.value = '';
       return;
     }
-    const frameImage = await readFileAsDataUrl(file);
+    
+    showToast('Compressing image...', 'info');
+    const compressedBlob = await compressToTransparentWebp(file, 2);
+    const frameImage = await readFileAsDataUrl(compressedBlob);
+    
     const frameSize = await readImageSize(frameImage);
     const preset = findBestPresetForFrame(frameSize);
     const nextTemplate = {
@@ -629,15 +633,9 @@ Instructions:
       showToast('Saving template...', 'info');
     }
     try {
-      let compressedBlob = null;
-      if (template.frameImage && template.frameImage.startsWith('data:')) {
-        const response = await fetch(template.frameImage);
-        const imageBlob = await response.blob();
-        compressedBlob = await compressToTransparentWebp(imageBlob, 2);
-      }
-
       const saveMethod = useStore.getState().saveTemplate;
-      const { success, error } = await saveMethod(template, user.id, compressedBlob);
+      // We pass null for frameFile because template.frameImage is already a compressed WebP Data URL
+      const { success, error } = await saveMethod(template, user.id, null);
 
       if (!success) {
         throw new Error(error || 'Failed to save to cloud');
@@ -690,7 +688,7 @@ Instructions:
           </div>
         )}
       </div>
-      <div className="menu-dropdown" onMouseLeave={() => setHelpMenuOpen(false)}>
+      {/* <div className="menu-dropdown" onMouseLeave={() => setHelpMenuOpen(false)}>
         <button className="menu-dropdown-button" onPointerDown={() => setHelpMenuOpen(!helpMenuOpen)}>Help</button>
         {helpMenuOpen && (
           <div className="menu-dropdown-content" onClick={() => setHelpMenuOpen(false)}>
@@ -699,7 +697,7 @@ Instructions:
             </button>
           </div>
         )}
-      </div>
+      </div> */}
     </div>
   );
 
@@ -976,41 +974,6 @@ Instructions:
         </aside>
       </main>
 
-      {showResumeModal && (
-        <div
-          style={{
-            position: 'fixed',
-            top: 0, left: 0, right: 0, bottom: 0,
-            backgroundColor: 'rgba(0,0,0,0.6)',
-            zIndex: 9999,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            backdropFilter: 'blur(3px)'
-          }}
-        >
-          <div style={{
-            background: 'var(--panel)',
-            padding: '24px',
-            borderRadius: '12px',
-            maxWidth: '400px',
-            width: '90vw',
-            border: '1px solid var(--border)'
-          }}>
-            <h3 style={{ margin: '0 0 16px 0', fontSize: '18px' }}>Resume Previous Work?</h3>
-            <p style={{ margin: '0 0 24px 0', fontSize: '14px', color: 'var(--muted)' }}>
-              You have a template in progress. Would you like to continue editing it, or start a new template from scratch?
-            </p>
-            <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
-              <Button onClick={() => {
-                resetTemplate();
-                setShowResumeModal(false);
-              }}>Start New</Button>
-              <Button variant="primary" onClick={() => setShowResumeModal(false)}>Resume Work</Button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {showSaveSuccessModal && (
         <div

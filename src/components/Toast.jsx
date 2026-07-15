@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useStore } from '../core/useStore.js';
+import notifSound from '../assets/notif.mp3';
 
 const TOAST_COLORS = {
   light: {
@@ -49,6 +50,19 @@ const ICONS = {
 export default function Toast() {
   const { message, type, visible, id } = useStore((state) => state.toast);
   const theme = useStore((state) => state.theme);
+
+  useEffect(() => {
+    if (visible && message) {
+      try {
+        const audio = new Audio(notifSound);
+        audio.play().catch((err) => {
+          console.warn('Toast sound play blocked by browser autoplay policy:', err);
+        });
+      } catch (err) {
+        console.error('Failed to play toast notification sound:', err);
+      }
+    }
+  }, [id, visible, message]);
 
   if (!visible) return null;
 

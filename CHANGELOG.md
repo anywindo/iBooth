@@ -1,7 +1,17 @@
-## [0.0.1-beta] - 2026-07-XX - Update
+## [0.0.1-beta] - 2026-07-15 - Cloud Integration & Fixes
 
-- **Secret Feature**: Added a highly advanced AI that detects if you blink in your photo strips. If you blink, the app automatically blinks back (Warning: currently this just randomly flashes the screen to dark mode and back. We're working on it).
-- **Bug Fix**: Finally patched the issue where our developers thought they were allowed to sleep. Sleep is now officially deprecated in this beta.
+- We've officially moved our database to Supabase Cloud! The app is now fully connected to a live production database environment.
+- Security is key! New user sign-ups now require email confirmation to verify identity before logging in.
+- We've added strict password requirements (uppercase, lowercase, number, and special character) to keep accounts secure.
+- Added custom HTML email templates for all auth emails (Welcome, Reset Password, Magic Links, and Verification Codes) powered by Resend.
+- We've added one-click OAuth login! You can now securely sign up and log in using your Google account right from the authentication modal.
+- Fixed an issue that prevented you from saving a customized version of catalog templates to your account.
+- Overhauled save permissions to make saving custom templates completely smooth and error-free.
+- When you delete a template, we now automatically clean up and remove its saved frame image from the cloud to keep storage tidy.
+- Fixed the notification sound to play reliably whenever a toast message pops up on your screen.
+- Cleaned up the browser's console logs to ensure your email addresses and account details stay strictly private.
+- Fixed an issue where reloading the page or returning from Google login would show a 404 error page.
+- Finally patched the issue where our developers thought they were allowed to sleep. Sleep is now officially deprecated in this beta.
 
 ## [0.0.1-alpha] - 2026-07-15 - Initial Project Release
 

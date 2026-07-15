@@ -264,7 +264,7 @@ export default function LandingScreen() {
     <div style={{ display: 'flex', gap: '8px' }}>
       <button className="menu-dropdown-button" onClick={handleEditorClick}>Editor</button>
       <button className="menu-dropdown-button" onClick={() => navigate('/catalog')}>Catalog</button>
-      <div className="menu-dropdown" onMouseLeave={() => setHelpMenuOpen(false)}>
+      {/* <div className="menu-dropdown" onMouseLeave={() => setHelpMenuOpen(false)}>
         <button className="menu-dropdown-button" onPointerDown={() => setHelpMenuOpen(!helpMenuOpen)}>Help</button>
         {helpMenuOpen && (
           <div className="menu-dropdown-content" onClick={() => setHelpMenuOpen(false)}>
@@ -273,7 +273,7 @@ export default function LandingScreen() {
             </button>
           </div>
         )}
-      </div>
+      </div> */}
     </div>
   );
 
