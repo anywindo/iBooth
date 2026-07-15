@@ -2,7 +2,6 @@ import { create } from 'zustand';
 import { DEFAULT_PRESET_ID, OUTPUT, SESSION_KEY, STORAGE_KEY, THEME_KEY, applyTheme, getCanvasPreset, getInitialTheme } from "./constants.js";
 import { supabase } from '../utils/supabase.js';
 import { useAuthStore } from '../store/authStore.js';
-import notifSound from '../assets/notif.mp3';
 
 // Utility to generate a unique ID
 export function uid() {
@@ -71,6 +70,54 @@ function loadTemplate() {
   }
 }
 
+async function deleteFromCloudinary(url) {
+  try {
+    if (!url) return;
+    
+    // Extract public ID from Cloudinary URL
+    const matches = url.match(/\/upload\/(?:v\d+\/)?([^\s?#]+)\.[a-zA-Z0-9]+(?:[?#]|$)/);
+    const publicId = matches ? matches[1] : null;
+    if (!publicId) return;
+
+    const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
+    const apiKey = import.meta.env.VITE_CLOUDINARY_API_KEY;
+    const apiSecret = import.meta.env.VITE_CLOUDINARY_API_SECRET;
+
+    if (!cloudName || !apiKey || !apiSecret) {
+      console.warn("Cloudinary credentials missing in .env, skipping Cloudinary deletion.");
+      return;
+    }
+
+    const cryptoObj = window.crypto || globalThis.crypto;
+    if (!cryptoObj || !cryptoObj.subtle) {
+      console.error("Web Crypto API (crypto.subtle) is not available (requires secure context HTTPS or localhost). Cannot delete from Cloudinary.");
+      return;
+    }
+
+    const timestamp = Math.round(new Date().getTime() / 1000);
+    const stringToSign = `public_id=${publicId}&timestamp=${timestamp}${apiSecret}`;
+    
+    // Compute SHA-1 signature using Web Crypto API
+    const utf8 = new TextEncoder().encode(stringToSign);
+    const hashBuffer = await cryptoObj.subtle.digest('SHA-1', utf8);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    const signature = hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
+
+    const formData = new FormData();
+    formData.append('public_id', publicId);
+    formData.append('timestamp', timestamp);
+    formData.append('api_key', apiKey);
+    formData.append('signature', signature);
+
+    await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/destroy`, {
+      method: 'POST',
+      body: formData
+    });
+  } catch (error) {
+    console.error("Failed to delete from Cloudinary:", error);
+  }
+}
+
 let toastTimeoutId = null;
 
 export const useStore = create((set, get) => {
@@ -115,12 +162,6 @@ export const useStore = create((set, get) => {
 
     showToast: (message, type = 'info') => {
       set({ toast: { message, type, visible: true, id: Date.now() } });
-      try {
-        const audio = new Audio(notifSound);
-        audio.play().catch(() => {});
-      } catch (err) {
-        console.error('Failed to play toast notification sound', err);
-      }
       
       if (toastTimeoutId) {
         clearTimeout(toastTimeoutId);
@@ -214,56 +255,29 @@ export const useStore = create((set, get) => {
 
     fetchTemplates: async (userId) => {
       try {
-        const templates = JSON.parse(localStorage.getItem('templates') || '[]');
-        
-        // Fetch missing creator names for old templates that only have owner_id
-        const uniqueOwnerIds = [...new Set(templates.filter(t => !t.creator_name && t.owner_id && t.owner_id !== 'local-user').map(t => t.owner_id))];
-        
-        if (uniqueOwnerIds.length > 0) {
-          const { data: profiles } = await supabase
-            .from('profiles')
-            .select('id, display_name')
-            .in('id', uniqueOwnerIds);
+        let query = supabase
+          .from('templates')
+          .select(`
+            *,
+            profiles!templates_owner_id_fkey(display_name)
+          `)
+          .order('created_at', { ascending: false });
 
-          if (profiles) {
-            const profileMap = Object.fromEntries(profiles.map(p => [p.id, p.display_name]));
-            let updated = false;
-            
-            // Clean up 'You'
-            templates.forEach(t => {
-              if (t.creator_name === 'You') {
-                t.creator_name = 'Local User';
-                updated = true;
-              }
-            });
-
-            // Backfill from Supabase
-            templates.forEach(t => {
-              if (!t.creator_name && profileMap[t.owner_id]) {
-                t.creator_name = profileMap[t.owner_id];
-                updated = true;
-              }
-            });
-
-            // Attach current user's name to their own templates permanently
-            const currentUser = useAuthStore.getState().user;
-            if (currentUser) {
-              templates.forEach(t => {
-                if (!t.creator_name && (t.owner_id === currentUser.id || t.owner_id === 'local-user')) {
-                  t.creator_name = currentUser.name;
-                  updated = true;
-                }
-              });
-            }
-            
-            // Persist the names so we don't have to fetch them again
-            if (updated) {
-              localStorage.setItem('templates', JSON.stringify(templates));
-            }
-          }
+        if (userId) {
+          query = query.eq('owner_id', userId);
         }
 
-        return { success: true, data: templates.map(normalizeTemplate) };
+        const { data, error } = await query;
+        if (error) throw error;
+
+        // Map data to the normalized format, including creator_name from profiles
+        const templates = data.map(t => {
+          const tNormalized = { ...t };
+          tNormalized.creator_name = t.profiles?.display_name || 'Unknown User';
+          return normalizeTemplate(tNormalized);
+        });
+
+        return { success: true, data: templates };
       } catch (error) {
         return { success: false, error: error.message };
       }
@@ -271,26 +285,61 @@ export const useStore = create((set, get) => {
 
     saveTemplate: async (template, userId, frameFile = null) => {
       try {
-        let publicUrl = template.frameImage || null;
+        const {
+          data: { user },
+          error: authError
+        } = await supabase.auth.getUser();
 
-        if (frameFile) {
-          // Since we have no backend, convert frameFile to base64
-          publicUrl = await new Promise((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onloadend = () => resolve(reader.result);
-            reader.onerror = reject;
-            reader.readAsDataURL(frameFile);
-          });
+        if (authError || !user) {
+          return { success: false, error: 'You must be logged in to save to the cloud.' };
         }
+        
+        const ownerId = user.id;
 
-        const currentUser = useAuthStore.getState().user;
-        const lastKnownName = localStorage.getItem('lastKnownName') || 'Guest';
-        const creatorName = template.creator_name === 'You' ? 'Local User' : (template.creator_name || template.profiles?.display_name || currentUser?.name || lastKnownName);
+        let publicUrl = template.frameImage || template.frame_image_url || null;
+        
+        // If the publicUrl is a Base64 string, it's a new upload. Upload it to Cloudinary!
+        if (publicUrl && publicUrl.startsWith('data:')) {
+          const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
+          const uploadPreset = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET;
+          
+          if (!cloudName || !uploadPreset) {
+            return { success: false, error: "Cloudinary credentials missing in .env" };
+          }
+ 
+          const formData = new FormData();
+          formData.append('file', publicUrl);
+          formData.append('upload_preset', uploadPreset);
+          formData.append('folder', `ibooth/templates/${ownerId}`);
+ 
+          const uploadRes = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
+            method: 'POST',
+            body: formData,
+          });
+ 
+          if (!uploadRes.ok) {
+            const errData = await uploadRes.json();
+            return { success: false, error: `Cloudinary Upload Error: ${errData.error?.message || uploadRes.statusText}` };
+          }
+ 
+          const uploadData = await uploadRes.json();
+          // Use the secure Cloudinary URL
+          publicUrl = uploadData.secure_url || uploadData.url;
+          
+          if (!publicUrl) {
+            return { success: false, error: "Cloudinary upload succeeded but no URL was returned." };
+          }
+        }
+ 
+        // If the template belongs to someone else, we must save it as a new template (remix)
+        const isNotOwner = user?.id && (!template.owner_id || template.owner_id !== user.id);
+        const finalId = (template.id === 'default-template' || isNotOwner) ? crypto.randomUUID() : template.id;
+
+
 
         const toSave = {
-          id: template.id === 'default-template' ? uid() : template.id,
-          owner_id: userId || 'local-user',
-          creator_name: creatorName,
+          id: finalId,
+          owner_id: ownerId,
           name: template.name,
           preset_id: template.presetId,
           dpi: template.dpi,
@@ -302,22 +351,25 @@ export const useStore = create((set, get) => {
           tags: template.tags,
           theme: template.theme,
           color_style: template.colorStyle,
-          created_at: template.created_at || new Date().toISOString(),
           updated_at: new Date().toISOString()
         };
 
-        const templates = JSON.parse(localStorage.getItem('templates') || '[]');
-        const index = templates.findIndex(t => t.id === toSave.id);
-        
-        if (index > -1) {
-          templates[index] = toSave;
-        } else {
-          templates.unshift(toSave);
+        if (template.created_at && !isNotOwner) {
+          toSave.created_at = template.created_at;
         }
-        
-        localStorage.setItem('templates', JSON.stringify(templates));
 
-        const savedTemplate = normalizeTemplate(toSave);
+        const { data, error } = await supabase
+          .from('templates')
+          .upsert(toSave, { onConflict: 'id' })
+          .select()
+          .single();
+
+        if (error) return { success: false, error: 'DATABASE_ERROR: ' + error.message };
+
+        const currentUser = useAuthStore.getState().user;
+        const savedData = { ...data, creator_name: currentUser?.name || 'Unknown User' };
+
+        const savedTemplate = normalizeTemplate(savedData);
         get().setTemplate(savedTemplate);
         get().saveTemplateQuietly();
         
@@ -327,17 +379,32 @@ export const useStore = create((set, get) => {
       }
     },
 
-    deleteTemplate: async (templateId, userId) => {
-      if (!templateId || templateId === 'default-template') return { success: false, error: 'Invalid template ID' };
-      try {
-        const templates = JSON.parse(localStorage.getItem('templates') || '[]');
-        const newTemplates = templates.filter(t => t.id !== templateId);
-        localStorage.setItem('templates', JSON.stringify(newTemplates));
-        return { success: true };
-      } catch (error) {
-        return { success: false, error: error.message };
-      }
-    }
+     deleteTemplate: async (templateId, userId) => {
+       if (!templateId || templateId === 'default-template') return { success: false, error: 'Invalid template ID' };
+       try {
+         // Fetch the template first to get its frame_image_url
+         const { data: templateData, error: fetchError } = await supabase
+           .from('templates')
+           .select('frame_image_url')
+           .eq('id', templateId)
+           .maybeSingle();
+
+         if (!fetchError && templateData?.frame_image_url) {
+           // Delete from Cloudinary (triggers asynchronously so database delete is not blocked)
+           deleteFromCloudinary(templateData.frame_image_url);
+         }
+
+         const { error } = await supabase
+           .from('templates')
+           .delete()
+           .eq('id', templateId);
+           
+         if (error) throw error;
+         return { success: true };
+       } catch (error) {
+         return { success: false, error: error.message };
+       }
+     }
   };
 });
 

@@ -162,6 +162,10 @@ export default function BoothScreen({ navigate }) {
   useEffect(() => {
     async function loadCameras() {
       try {
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+          console.warn('Camera access requires HTTPS or localhost.');
+          return;
+        }
         const tempStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
         tempStream.getTracks().forEach(t => t.stop());
         const devices = await navigator.mediaDevices.enumerateDevices();
@@ -235,6 +239,10 @@ export default function BoothScreen({ navigate }) {
     if (cameraStream) stopCameraStream();
     
     try {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        setCountdown('No HTTPS');
+        return;
+      }
       const constraints = { video: { width: 1280, height: 720 }, audio: false };
       if (deviceId) {
         constraints.video.deviceId = { exact: deviceId };

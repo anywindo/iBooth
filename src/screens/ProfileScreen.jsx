@@ -44,9 +44,9 @@ export default function ProfileScreen({ navigate }) {
   const [showAboutModal, setShowAboutModal] = useState(false);
   const menu = (
     <div style={{ display: 'flex', gap: '8px' }}>
-      <button className="menu-dropdown-button" onClick={() => navigate('/editor')}>Editor</button>
+      <button className="menu-dropdown-button" onClick={() => navigate('/editor', { state: { returnTo: '/profile' } })}>Editor</button>
       <button className="menu-dropdown-button" onClick={() => navigate('/catalog')}>Catalog</button>
-      <div className="menu-dropdown" onMouseLeave={() => setHelpMenuOpen(false)}>
+      {/* <div className="menu-dropdown" onMouseLeave={() => setHelpMenuOpen(false)}>
         <button className="menu-dropdown-button" onPointerDown={() => setHelpMenuOpen(!helpMenuOpen)}>Help</button>
         {helpMenuOpen && (
           <div className="menu-dropdown-content" onClick={() => setHelpMenuOpen(false)}>
@@ -55,7 +55,7 @@ export default function ProfileScreen({ navigate }) {
             </button>
           </div>
         )}
-      </div>
+      </div> */}
     </div>
   );
 
@@ -465,7 +465,7 @@ export default function ProfileScreen({ navigate }) {
                   {userStrips.length} {userStrips.length === 1 ? 'Strip' : 'Strips'}
                 </span>
               </div>
-              <Button variant="primary" onClick={() => navigate('/editor')} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <Button variant="primary" onClick={() => navigate('/editor', { state: { returnTo: '/profile' } })} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <Plus size={16} /> Create New Strip
               </Button>
             </div>
@@ -652,7 +652,7 @@ export default function ProfileScreen({ navigate }) {
                   <div className="profile-empty-copy">
                     Your saved photo strips will appear here. Start creating beautiful memories in the editor!
                   </div>
-                  <button className="primary" style={{ marginTop: '24px' }} onClick={() => navigate('/editor')}>
+                  <button className="primary" style={{ marginTop: '24px' }} onClick={() => navigate('/editor', { state: { returnTo: '/profile' } })}>
                     Go to Editor
                   </button>
                 </div>

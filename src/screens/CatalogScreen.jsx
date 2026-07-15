@@ -110,6 +110,7 @@ export default function CatalogScreen({ navigate }) {
   const { user, isAuthenticated } = useAuthStore();
 
   const setTemplate = useStore((store) => store.setTemplate);
+  const resetTemplate = useStore((store) => store.resetTemplate);
   const setSelectedSlotId = useStore((store) => store.setSelectedSlotId);
   const showToast = useStore((store) => store.showToast);
 
@@ -124,14 +125,15 @@ export default function CatalogScreen({ navigate }) {
       showToast('You will need to login to access the editor', 'warning');
       return;
     }
-    navigate('/editor');
+    resetTemplate();
+    navigate('/editor', { state: { returnTo: '/catalog' } });
   };
 
   const menu = (
     <div style={{ display: 'flex', gap: '8px' }}>
       <button className="menu-dropdown-button" onClick={handleEditorClick}>Editor</button>
       <button className="menu-dropdown-button" onClick={() => navigate('/catalog')}>Catalog</button>
-      <div className="menu-dropdown" onMouseLeave={() => setHelpMenuOpen(false)}>
+      {/* <div className="menu-dropdown" onMouseLeave={() => setHelpMenuOpen(false)}>
         <button className="menu-dropdown-button" onPointerDown={() => setHelpMenuOpen(!helpMenuOpen)}>Help</button>
         {helpMenuOpen && (
           <div className="menu-dropdown-content" onClick={() => setHelpMenuOpen(false)}>
@@ -140,7 +142,7 @@ export default function CatalogScreen({ navigate }) {
             </button>
           </div>
         )}
-      </div>
+      </div> */}
     </div>
   );
 
@@ -283,6 +285,7 @@ export default function CatalogScreen({ navigate }) {
     const normalized = typeof normalizeTemplate === 'function' ? normalizeTemplate(layout) : layout;
     if (template.frame_image_url && !normalized.frameImage) normalized.frameImage = template.frame_image_url;
     normalized.id = template.id;
+    normalized.owner_id = template.owner_id;
     return normalized;
   }
 
@@ -576,7 +579,7 @@ export default function CatalogScreen({ navigate }) {
                 <div className="catalog-state catalog-empty-state">
                   <ImageIcon size={30} />
                   <span>No templates yet. Create your first layout in the editor.</span>
-                  <Button variant="primary" onClick={() => navigate('/editor')}>Open Editor</Button>
+                  <Button variant="primary" onClick={handleEditorClick}>Open Editor</Button>
                 </div>
               )}
 

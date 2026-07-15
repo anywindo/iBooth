@@ -91,8 +91,10 @@ export const useAuthStore = create((set, get) => {
       }
     },
 
-    login: async ({ email, password }) => {
+    login: async (params) => {
       try {
+        const email = (typeof params === 'object' ? params.email : params)?.trim();
+        const password = typeof params === 'object' ? params.password : undefined;
         const result = await Promise.race([
           supabase.auth.signInWithPassword({ email, password }),
           new Promise((_, reject) => setTimeout(() => reject(new Error('Login request timed out. Please refresh the page and try again.')), 10000))
@@ -148,28 +150,40 @@ export const useAuthStore = create((set, get) => {
       }
     },
 
-    register: async ({ name, email, password }) => {
+    register: async (params) => {
       try {
+        const email = (typeof params === 'object' ? params.email : params)?.trim();
+        const password = typeof params === 'object' ? params.password : undefined;
+        const name = typeof params === 'object' ? params.name : undefined;
+        
         const result = await Promise.race([
-          supabase.auth.signUp({ 
-            email, 
+          supabase.auth.signUp({
+            email,
             password,
-            options: { data: { display_name: name } }
+            options: { 
+              data: { display_name: name },
+              emailRedirectTo: `${window.location.origin}/`
+            }
           }),
           new Promise((_, reject) => setTimeout(() => reject(new Error('Registration request timed out. Please try again.')), 10000))
         ]);
         if (result.error) throw result.error;
 
-        // Removed profiles table insert
+        // If session is null, email confirmation is required by Supabase settings
+        const requiresEmailConfirmation = !result.data?.session && result.data?.user;
 
-        return { success: true };
+        return { success: true, requiresEmailConfirmation };
       } catch (error) {
         return { success: false, error: extractError(error, 'Registration failed') };
       }
     },
 
-    forgotPassword: async ({ email }) => {
+    forgotPassword: async (params) => {
       try {
+        const email = (typeof params === 'object' ? params.email : params)?.trim();
+        if (!email) {
+          throw new Error('Email is missing in forgotPassword call');
+        }
         const result = await Promise.race([
           supabase.auth.resetPasswordForEmail(email, {
             redirectTo: `${window.location.origin}/reset-password`,
@@ -179,7 +193,22 @@ export const useAuthStore = create((set, get) => {
         if (result.error) throw result.error;
         return { success: true, message: 'Password reset link sent' };
       } catch (error) {
-        return { success: false, error: extractError(error, 'Failed to send reset link') };
+        return { success: false, error: extractError(error, 'Password reset failed') };
+      }
+    },
+
+    signInWithGoogle: async () => {
+      try {
+        const result = await supabase.auth.signInWithOAuth({
+          provider: 'google',
+          options: {
+            redirectTo: `${window.location.origin}/profile`
+          }
+        });
+        if (result.error) throw result.error;
+        return { success: true };
+      } catch (error) {
+        return { success: false, error: extractError(error, 'Google sign in failed') };
       }
     },
 
