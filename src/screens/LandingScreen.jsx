@@ -96,6 +96,11 @@ export function InfiniteSliderVertical() {
 
 function CollapsibleSection({ title, children, defaultCollapsed = false }) {
   const [collapsed, setCollapsed] = useState(defaultCollapsed);
+
+  useEffect(() => {
+    setCollapsed(defaultCollapsed);
+  }, [defaultCollapsed]);
+
   return (
     <div style={{ marginBottom: '1rem', background: 'var(--code-bg)', borderRadius: '8px', border: '1px solid var(--border)', overflow: 'hidden' }}>
       <div
@@ -205,6 +210,7 @@ export default function LandingScreen() {
     };
   }, []);
 
+  /*
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
@@ -243,6 +249,7 @@ export default function LandingScreen() {
       clearTimeout(wheelTimeout);
     };
   }, []);
+  */
 
   const playShutterHover = () => {
     if (!shutterAudioRef.current) {
@@ -387,7 +394,7 @@ export default function LandingScreen() {
             flexDirection: 'row',
             gap: '2.5rem',
             textAlign: 'left',
-            overflowY: 'auto'
+            overflow: 'hidden'
           }}>
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '2.5rem', minWidth: 0, padding: '2.5rem 0 2.5rem 3rem' }}>
               <motion.div
@@ -408,22 +415,22 @@ export default function LandingScreen() {
                   msOverflowStyle: 'none'
                 }}>
                   {workflowItems.map((item, index) => (
-                    <motion.div 
-                      key={item.value} 
+                    <motion.div
+                      key={item.value}
                       initial={{ opacity: 0, x: 20 }}
                       whileInView={{ opacity: 1, x: 0 }}
                       viewport={{ once: true }}
                       transition={{ duration: 0.5, delay: index * 0.1 + 0.3, ease: 'easeOut' }}
                       style={{
-                      display: 'flex',
-                      gap: '1rem',
-                      alignItems: 'baseline',
-                      flex: '0 0 260px',
-                      background: 'var(--code-bg)',
-                      padding: '1.25rem',
-                      borderRadius: '8px',
-                      border: '1px solid var(--border)'
-                    }}>
+                        display: 'flex',
+                        gap: '1rem',
+                        alignItems: 'baseline',
+                        flex: '0 0 260px',
+                        background: 'var(--code-bg)',
+                        padding: '1.25rem',
+                        borderRadius: '8px',
+                        border: '1px solid var(--border)'
+                      }}>
                       <span style={{ fontFamily: 'var(--mono)', color: 'var(--accent)', fontWeight: 'bold', fontSize: '1.2rem' }}>{item.value}</span>
                       <div>
                         <h3 style={{ margin: 0, fontSize: '1.1rem', color: 'var(--text-h)' }}>{item.label}</h3>
@@ -459,15 +466,15 @@ export default function LandingScreen() {
                       viewport={{ once: true }}
                       transition={{ duration: 0.5, delay: index * 0.1 + 0.4, ease: 'easeOut' }}
                       style={{
-                      display: 'flex',
-                      gap: '1rem',
-                      alignItems: 'baseline',
-                      flex: '0 0 260px',
-                      background: 'var(--code-bg)',
-                      padding: '1.25rem',
-                      borderRadius: '8px',
-                      border: '1px solid var(--border)'
-                    }}>
+                        display: 'flex',
+                        gap: '1rem',
+                        alignItems: 'baseline',
+                        flex: '0 0 260px',
+                        background: 'var(--code-bg)',
+                        padding: '1.25rem',
+                        borderRadius: '8px',
+                        border: '1px solid var(--border)'
+                      }}>
                       <span style={{ fontFamily: 'var(--mono)', color: 'var(--accent)', fontWeight: 'bold', fontSize: '1.2rem' }}>{item.value}</span>
                       <div>
                         <h3 style={{ margin: 0, fontSize: '1.1rem', color: 'var(--text-h)' }}>{item.label}</h3>
@@ -506,24 +513,24 @@ export default function LandingScreen() {
                     { value: stats.users, label: 'Total creators' },
                     { value: stats.templates, label: 'Templates created' }
                   ].map((stat, i) => (
-                    <motion.div 
-                      key={i} 
+                    <motion.div
+                      key={i}
                       initial={{ opacity: 0, scale: 0.95 }}
                       whileInView={{ opacity: 1, scale: 1 }}
                       viewport={{ once: true }}
                       transition={{ duration: 0.5, delay: i * 0.1 + 0.5, ease: 'easeOut' }}
                       style={{
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: '0.25rem',
-                      flex: '0 0 200px',
-                      background: 'var(--code-bg)',
-                      padding: '1.25rem',
-                      borderRadius: '8px',
-                      border: '1px solid var(--border)',
-                      alignItems: 'center',
-                      textAlign: 'center'
-                    }}>
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '0.25rem',
+                        flex: '0 0 200px',
+                        background: 'var(--code-bg)',
+                        padding: '1.25rem',
+                        borderRadius: '8px',
+                        border: '1px solid var(--border)',
+                        alignItems: 'center',
+                        textAlign: 'center'
+                      }}>
                       <span style={{ fontFamily: 'var(--mono)', color: 'var(--accent)', fontWeight: 'bold', fontSize: '2rem' }}>{stat.value}</span>
                       <span style={{ color: 'var(--text-h)', fontSize: '1rem', fontWeight: 500 }}>{stat.label}</span>
                     </motion.div>
@@ -546,43 +553,70 @@ export default function LandingScreen() {
             height: '100%',
             padding: '2.5rem 3rem',
             boxSizing: 'border-box',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '2.5rem',
+            display: 'grid',
+            gridTemplateColumns: '1fr 1fr',
+            gap: '4rem',
             textAlign: 'left',
-            overflowY: 'auto'
+            overflow: 'hidden'
           }}>
-            <div>
-              <h2 style={{ fontSize: '1.5rem', marginBottom: '1.5rem', fontWeight: 600 }}>Latest Updates</h2>
-              
-              {releases.map((release, i) => {
-                const lines = release.split('\n');
-                const title = lines[0].replace(/^##\s+/, '').trim();
-                const content = lines.slice(1).join('\n');
-                return (
-                  <CollapsibleSection key={title} title={title} defaultCollapsed={i !== 0}>
-                    <div style={{
-                      color: 'var(--text)',
-                      fontSize: '0.95rem',
-                      lineHeight: '1.6'
-                    }}>
-                      <ReactMarkdown
-                        components={{
-                          h1: ({node, ...props}) => <h1 style={{fontSize: '1.8rem', marginTop: 0, marginBottom: '1rem', color: 'var(--text-h)'}} {...props} />,
-                          h2: ({node, ...props}) => <h2 style={{fontSize: '1.4rem', marginTop: '1.5rem', marginBottom: '1rem', color: 'var(--text-h)', borderBottom: '1px solid var(--border)', paddingBottom: '0.5rem'}} {...props} />,
-                          h3: ({node, ...props}) => <h3 style={{fontSize: '1.1rem', marginTop: '1.5rem', marginBottom: '0.8rem', color: 'var(--text-h)', fontWeight: 600}} {...props} />,
-                          ul: ({node, ...props}) => <ul style={{paddingLeft: '1.5rem', marginBottom: '1rem', listStyleType: 'disc'}} {...props} />,
-                          li: ({node, ...props}) => <li style={{marginBottom: '0.5rem'}} {...props} />,
-                          strong: ({node, ...props}) => <strong style={{color: 'var(--text-h)', fontWeight: 600}} {...props} />,
-                          code: ({node, ...props}) => <code style={{background: 'rgba(255,255,255,0.1)', padding: '2px 4px', borderRadius: '4px', fontFamily: 'var(--mono)', fontSize: '0.9em', color: 'var(--accent)'}} {...props} />
-                        }}
-                      >
-                        {content}
-                      </ReactMarkdown>
-                    </div>
-                  </CollapsibleSection>
-                );
-              })}
+            <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
+              <h2 style={{ fontSize: '1.5rem', marginBottom: '1.5rem', fontWeight: 600, flexShrink: 0 }}>Latest Updates</h2>
+              <p style={{ color: 'var(--text)', fontSize: '0.95rem', marginBottom: '1.5rem' }}>Contribute to this project on <a href="https://github.com/anywindo/iBooth" style={{ color: 'var(--accent)', fontWeight: 'bold' }}>GitHub</a></p>
+              <div style={{ overflowY: 'auto', flex: 1, paddingRight: '1rem', paddingBottom: '2rem' }} className="custom-scrollbar">
+                {releases.map((release, i) => {
+                  const lines = release.split('\n');
+                  const title = lines[0].replace(/^##\s+/, '').trim();
+                  const content = lines.slice(1).join('\n');
+                  return (
+                    <CollapsibleSection key={title} title={title} defaultCollapsed={i !== 0}>
+                      <div style={{
+                        color: 'var(--text)',
+                        fontSize: '0.95rem',
+                        lineHeight: '1.6'
+                      }}>
+                        <ReactMarkdown
+                          components={{
+                            h1: ({ node, ...props }) => <h1 style={{ fontSize: '1.8rem', marginTop: 0, marginBottom: '1rem', color: 'var(--text-h)' }} {...props} />,
+                            h2: ({ node, ...props }) => <h2 style={{ fontSize: '1.4rem', marginTop: '1.5rem', marginBottom: '1rem', color: 'var(--text-h)', borderBottom: '1px solid var(--border)', paddingBottom: '0.5rem' }} {...props} />,
+                            h3: ({ node, ...props }) => <h3 style={{ fontSize: '1.1rem', marginTop: '1.5rem', marginBottom: '0.8rem', color: 'var(--text-h)', fontWeight: 600 }} {...props} />,
+                            ul: ({ node, ...props }) => <ul style={{ paddingLeft: '1.5rem', marginBottom: '1rem', listStyleType: 'disc' }} {...props} />,
+                            li: ({ node, ...props }) => <li style={{ marginBottom: '0.5rem' }} {...props} />,
+                            strong: ({ node, ...props }) => <strong style={{ color: 'var(--text-h)', fontWeight: 600 }} {...props} />,
+                            code: ({ node, ...props }) => <code style={{ background: 'rgba(255,255,255,0.1)', padding: '2px 4px', borderRadius: '4px', fontFamily: 'var(--mono)', fontSize: '0.9em', color: 'var(--accent)' }} {...props} />
+                          }}
+                        >
+                          {content}
+                        </ReactMarkdown>
+                      </div>
+                    </CollapsibleSection>
+                  );
+                })}
+              </div>
+            </div>
+            <div style={{
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'center',
+              alignItems: 'center',
+              background: 'var(--code-bg)',
+              borderRadius: '12px',
+              border: '1px solid var(--border)',
+              height: '100%',
+              minHeight: '400px',
+              position: 'relative',
+              overflow: 'hidden'
+            }}>
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                whileInView={{ opacity: 1, scale: 1 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.5 }}
+                style={{ textAlign: 'center', color: 'var(--text)' }}
+              >
+                <div style={{ fontSize: '3rem', marginBottom: '1rem', color: 'var(--accent)' }}>✨</div>
+                <h3 style={{ fontSize: '1.2rem', marginBottom: '0.5rem', color: 'var(--text-h)' }}>More coming soon</h3>
+                <p style={{ opacity: 0.7, maxWidth: '250px', margin: '0 auto' }}>We're always working on new features. Stay tuned!</p>
+              </motion.div>
             </div>
           </section>
         </main>
