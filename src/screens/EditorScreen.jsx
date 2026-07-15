@@ -204,13 +204,30 @@ export default function EditorScreen({ navigate }) {
 
     let touchStartDist = 0;
     let touchStartZoom = 1;
+    let touchStartPan = { x: 0, y: 0 };
+    let touchStartMidpoint = { x: 0, y: 0 };
 
     const handleWheel = (e) => {
       if (e.ctrlKey || e.metaKey) {
         e.preventDefault();
+        
+        const rect = scroller.getBoundingClientRect();
+        const mouseX = e.clientX - rect.left;
+        const mouseY = e.clientY - rect.top;
+        
         const currentZoom = useStore.getState().zoom;
-        const zoomFactor = e.deltaY > 0 ? 0.96 : 1.04;
-        setZoom(clamp(currentZoom * zoomFactor, 0.18, 2.25));
+        const currentPan = useStore.getState().pan;
+        
+        const zoomFactor = e.deltaY > 0 ? 0.94 : 1.06;
+        const nextZoom = clamp(currentZoom * zoomFactor, 0.18, 2.25);
+        
+        if (nextZoom !== currentZoom) {
+          const nextPanX = currentPan.x + (mouseX - rect.width / 2 - currentPan.x) * (1 - nextZoom / currentZoom);
+          const nextPanY = currentPan.y + (mouseY - rect.height / 2 - currentPan.y) * (1 - nextZoom / currentZoom);
+          
+          setZoom(nextZoom);
+          setPan({ x: nextPanX, y: nextPanY });
+        }
       }
     };
 
@@ -220,6 +237,13 @@ export default function EditorScreen({ navigate }) {
         const dy = e.touches[0].clientY - e.touches[1].clientY;
         touchStartDist = Math.hypot(dx, dy);
         touchStartZoom = useStore.getState().zoom;
+        touchStartPan = useStore.getState().pan;
+        
+        const rect = scroller.getBoundingClientRect();
+        touchStartMidpoint = {
+          x: (e.touches[0].clientX + e.touches[1].clientX) / 2 - rect.left,
+          y: (e.touches[0].clientY + e.touches[1].clientY) / 2 - rect.top
+        };
       }
     };
 
@@ -230,7 +254,14 @@ export default function EditorScreen({ navigate }) {
         const dy = e.touches[0].clientY - e.touches[1].clientY;
         const dist = Math.hypot(dx, dy);
         const scale = dist / touchStartDist;
-        setZoom(clamp(touchStartZoom * scale, 0.18, 2.25));
+        const nextZoom = clamp(touchStartZoom * scale, 0.18, 2.25);
+        
+        const rect = scroller.getBoundingClientRect();
+        const nextPanX = touchStartPan.x + (touchStartMidpoint.x - rect.width / 2 - touchStartPan.x) * (1 - nextZoom / touchStartZoom);
+        const nextPanY = touchStartPan.y + (touchStartMidpoint.y - rect.height / 2 - touchStartPan.y) * (1 - nextZoom / touchStartZoom);
+        
+        setZoom(nextZoom);
+        setPan({ x: nextPanX, y: nextPanY });
       }
     };
 
@@ -249,7 +280,7 @@ export default function EditorScreen({ navigate }) {
   const bleedPixels = template.enableBleed ? Math.round((template.bleed || 2) / 25.4 * ppi) : 0;
 
   const stageLeft = (viewport.width - template.width * zoom) / 2 + pan.x;
-  const stageTop = Math.max(40, (viewport.height - template.height * zoom) / 2 + pan.y);
+  const stageTop = (viewport.height - template.height * zoom) / 2 + pan.y;
 
   function applyAiResult(nextTemplate, result) {
     updateTemplate({ ...nextTemplate, slots: result.slots });
