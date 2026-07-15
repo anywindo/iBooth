@@ -1,7 +1,9 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { motion } from 'framer-motion';
+import { motion, useScroll, useTransform } from 'framer-motion';
 import { ArrowUpRight, Camera, Sparkles, X } from 'lucide-react';
 import { AppShell } from '../components/AppShell.jsx';
+import ReactMarkdown from 'react-markdown';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '../components/Button.jsx';
 import AuthModal from '../components/AuthModal.jsx';
 import exampleImage from '../assets/example.jpg';
@@ -11,85 +13,150 @@ import { useStore } from '../core/useStore.js';
 import { useAuthStore } from '../store/authStore.js';
 import packageJson from '../../package.json';
 import changelogText from '../../CHANGELOG.md?raw';
+import { InfiniteSlider } from '../../components/motion-primitives/infinite-slider';
 
-function parseChangelog(text) {
-  const sections = [];
-  const lines = text.split('\n');
-  let currentSection = null;
-  let currentSub = null;
+export function InfiniteSliderVertical() {
+  const imgStyle = {
+    width: '120px',
+    height: '120px',
+    objectFit: 'cover',
+    borderRadius: '4px',
+    flexShrink: 0
+  };
 
-  for (let line of lines) {
-    const versionMatch = line.match(/^##\s+\[?([0-9a-zA-Z.-]+)\]?\s*-\s*(.+)/);
-    if (versionMatch) {
-      if (currentSection) {
-        sections.push(currentSection);
-      }
-      currentSection = {
-        version: versionMatch[1],
-        date: versionMatch[2],
-        items: []
-      };
-      currentSub = null;
-      continue;
-    }
-
-    if (currentSection) {
-      const typeMatch = line.match(/^###\s+(Added|Changed|Fixed|Removed|Deprecated|Security|Verified)/i);
-      if (typeMatch) {
-        currentSub = typeMatch[1];
-        continue;
-      }
-
-      const itemMatch = line.match(/^-\s+(.+)/);
-      if (itemMatch && currentSub) {
-        currentSection.items.push({
-          type: currentSub,
-          text: itemMatch[1]
-        });
-      }
-    }
-  }
-  if (currentSection) {
-    sections.push(currentSection);
-  }
-  return sections;
-}
-
-function CollapsibleSection({ title, note, noteClassName = "section-note", headingClassName = "section-heading", children, defaultCollapsed = false }) {
-  const [collapsed, setCollapsed] = useState(defaultCollapsed);
   return (
-    <section className="panel-section">
-      <div
-        className={headingClassName}
-        onClick={() => setCollapsed(!collapsed)}
-        style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', userSelect: 'none' }}
-      >
-        <span style={{
-          marginRight: '8px',
-          transform: collapsed ? 'rotate(-90deg)' : 'rotate(0deg)',
-          transition: 'transform 0.15s ease',
-          display: 'inline-block',
-          fontSize: '10px'
-        }}>▼</span>
-        <h2 className="panel-title" style={{ flex: 1, margin: 0 }}>{title}</h2>
-        {note && <span className={noteClassName}>{note}</span>}
-      </div>
-      <div style={{ display: collapsed ? 'none' : 'flex', flexDirection: 'column', gap: '14px', marginTop: '14px' }}>
-        {children}
-      </div>
-    </section>
+    <div style={{ display: 'flex', height: '100%', gap: '16px' }}>
+      <InfiniteSlider direction='vertical' speedOnHover={20} gap={24}>
+        <img
+          src='https://picsum.photos/seed/picsum1/300/300'
+          alt='Random photo 1'
+          style={imgStyle}
+        />
+        <img
+          src='https://picsum.photos/seed/picsum2/300/300'
+          alt='Random photo 2'
+          style={imgStyle}
+        />
+        <img
+          src='https://picsum.photos/seed/picsum3/300/300'
+          alt='Random photo 3'
+          style={imgStyle}
+        />
+        <img
+          src='https://picsum.photos/seed/picsum4/300/300'
+          alt='Random photo 4'
+          style={imgStyle}
+        />
+        <img
+          src='https://picsum.photos/seed/picsum5/300/300'
+          alt='Random photo 5'
+          style={imgStyle}
+        />
+        <img
+          src='https://picsum.photos/seed/picsum6/300/300'
+          alt='Random photo 6'
+          style={imgStyle}
+        />
+      </InfiniteSlider>
+      <InfiniteSlider direction='vertical' reverse speedOnHover={20} gap={24}>
+        <img
+          src='https://picsum.photos/seed/picsum7/300/300'
+          alt='Random photo 7'
+          style={imgStyle}
+        />
+        <img
+          src='https://picsum.photos/seed/picsum8/300/300'
+          alt='Random photo 8'
+          style={imgStyle}
+        />
+        <img
+          src='https://picsum.photos/seed/picsum9/300/300'
+          alt='Random photo 9'
+          style={imgStyle}
+        />
+        <img
+          src='https://picsum.photos/seed/picsum10/300/300'
+          alt='Random photo 10'
+          style={imgStyle}
+        />
+        <img
+          src='https://picsum.photos/seed/picsum11/300/300'
+          alt='Random photo 11'
+          style={imgStyle}
+        />
+        <img
+          src='https://picsum.photos/seed/picsum12/300/300'
+          alt='Random photo 12'
+          style={imgStyle}
+        />
+      </InfiniteSlider>
+    </div>
   );
 }
 
+function CollapsibleSection({ title, children, defaultCollapsed = false }) {
+  const [collapsed, setCollapsed] = useState(defaultCollapsed);
+  return (
+    <div style={{ marginBottom: '1rem', background: 'var(--code-bg)', borderRadius: '8px', border: '1px solid var(--border)', overflow: 'hidden' }}>
+      <div
+        onClick={() => setCollapsed(!collapsed)}
+        style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', userSelect: 'none', padding: '1rem 1.5rem', background: 'rgba(255,255,255,0.02)' }}
+      >
+        <span style={{
+          marginRight: '12px',
+          transform: collapsed ? 'rotate(-90deg)' : 'rotate(0deg)',
+          transition: 'transform 0.15s ease',
+          display: 'inline-block',
+          fontSize: '0.8rem',
+          color: 'var(--text)'
+        }}>
+          ▼
+        </span>
+        <h3 style={{ margin: 0, fontSize: '1.2rem', color: 'var(--text-h)' }}>{title}</h3>
+      </div>
+      <div style={{
+        display: 'grid',
+        gridTemplateRows: collapsed ? '0fr' : '1fr',
+        transition: 'grid-template-rows 0.3s ease-in-out',
+      }}>
+        <div style={{ overflow: 'hidden' }}>
+          <div style={{ padding: '0 1.5rem 1.5rem 1.5rem' }}>
+            {children}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
+
 const workflowItems = [
-  { value: '01', label: 'Design', detail: 'Build polished strip layouts fast.' },
-  { value: '02', label: 'Capture', detail: 'Run a guided booth session.' },
-  { value: '03', label: 'Share', detail: 'Save templates and exports.' }
+  { value: '01', label: 'Design', detail: 'Create or import your own strip template.' },
+  { value: '02', label: 'Capture', detail: 'Run a guided booth session to check.' },
+  { value: '03', label: 'Share', detail: 'Save to the cloud and share with everyone.' }
 ];
 
-export default function LandingScreen({ navigate }) {
+const extendedWorkflowItems = [
+  { value: '1', label: 'Choose a template', detail: 'Select your favorite template from the catalog and customize it in seconds.' },
+  { value: '2', label: 'Start the session', detail: 'Grab your friends, strike a pose, and enjoy the fun with interactive features.' },
+  { value: '3', label: 'Share the fun', detail: 'Download your photos instantly or share them directly with others.' },
+  { value: '4', label: 'Save your memories', detail: 'All your fun moments are securely saved in your digital gallery.' }
+];
+
+export default function LandingScreen() {
+  const navigate = useNavigate();
   const containerRef = useRef(null);
   const [activeSlide, setActiveSlide] = useState(0);
+
+  const releases = changelogText
+    .split(/(?=^##\s)/m)
+    .map(t => t.trim())
+    .filter(t => t.startsWith('##'));
+
+  const { scrollX } = useScroll({ container: containerRef });
+  const copyParallax = useTransform(scrollX, [0, 2000], [0, -250]);
+  const showcaseParallax = useTransform(scrollX, [0, 2000], [0, 400]);
 
   const handleScroll = () => {
     if (!containerRef.current) return;
@@ -101,9 +168,23 @@ export default function LandingScreen({ navigate }) {
   const [helpMenuOpen, setHelpMenuOpen] = useState(false);
   const [showAboutModal, setShowAboutModal] = useState(false);
   const [headlineSequence, setHeadlineSequence] = useState(0);
+  const [stats, setStats] = useState({ users: 0, templates: 0 });
   const shutterAudioRef = useRef(null);
   const showToast = useStore((store) => store.showToast);
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+
+  useEffect(() => {
+    try {
+      const templates = JSON.parse(localStorage.getItem('templates') || '[]');
+      const uniqueUsers = new Set(templates.map((t) => t.owner_id || 'local-user')).size;
+      setStats({
+        users: uniqueUsers,
+        templates: templates.length
+      });
+    } catch (e) {
+      console.error('Failed to load stats', e);
+    }
+  }, []);
 
   const handleEditorClick = () => {
     if (!isAuthenticated) {
@@ -121,6 +202,45 @@ export default function LandingScreen({ navigate }) {
     return () => {
       audio.pause();
       shutterAudioRef.current = null;
+    };
+  }, []);
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+
+    let isScrolling = false;
+    let wheelTimeout;
+
+    const onWheel = (e) => {
+      if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
+        e.preventDefault();
+
+        if (isScrolling) return;
+
+        const direction = Math.sign(e.deltaY);
+        if (direction === 0) return;
+
+        isScrolling = true;
+        const currentIndex = Math.round(el.scrollLeft / el.clientWidth);
+        const nextIndex = Math.max(0, Math.min(2, currentIndex + direction));
+
+        el.scrollTo({
+          left: nextIndex * el.clientWidth,
+          behavior: 'smooth'
+        });
+
+        clearTimeout(wheelTimeout);
+        wheelTimeout = setTimeout(() => {
+          isScrolling = false;
+        }, 800);
+      }
+    };
+
+    el.addEventListener('wheel', onWheel, { passive: false });
+    return () => {
+      el.removeEventListener('wheel', onWheel);
+      clearTimeout(wheelTimeout);
     };
   }, []);
 
@@ -156,8 +276,6 @@ export default function LandingScreen({ navigate }) {
     </>
   );
 
-  const changelog = parseChangelog(changelogText);
-
   return (
     <AppShell
       title="iBooth"
@@ -168,214 +286,347 @@ export default function LandingScreen({ navigate }) {
       statusBarRight={<div>Part of <a href="https://arwndoprtma.space" target="_blank" rel="noopener noreferrer" style={{ color: 'inherit', textDecoration: 'none' }}>arwndoprtma.space</a></div>}
     >
       <div style={{ position: 'relative', width: '100%', height: '100%', overflow: 'hidden' }}>
-        <main 
+        <main
           ref={containerRef}
           onScroll={handleScroll}
-          className="landing-page" 
+          className="landing-page"
           style={{
-        display: 'flex',
-        flexDirection: 'row',
-        overflowX: 'auto',
-        scrollSnapType: 'x mandatory',
-        width: '100%',
-        height: '100%',
-        scrollbarWidth: 'none',
-        msOverflowStyle: 'none',
-        scrollBehavior: 'smooth'
-      }}>
-        <motion.section
-          className="workspace landing-workspace"
-          style={{ 
-            flex: '0 0 100%', 
-            scrollSnapAlign: 'start', 
+            display: 'flex',
+            flexDirection: 'row',
+            overflowX: 'auto',
+            scrollSnapType: 'x mandatory',
+            width: '100%',
             height: '100%',
-            boxSizing: 'border-box'
-          }}
-          exit={{ opacity: 0, y: -10 }}
-          transition={{ duration: 0.2 }}
-        >
-          <motion.div
-            className="landing-copy"
-            initial={{ opacity: 0, x: -28 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.55, ease: "easeOut" }}
+            scrollbarWidth: 'none',
+            msOverflowStyle: 'none'
+          }}>
+          <motion.section
+            className="workspace landing-workspace"
+            style={{
+              flex: '0 0 100%',
+              scrollSnapAlign: 'start',
+              height: '100%',
+              boxSizing: 'border-box'
+            }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.2 }}
           >
+            <motion.div style={{ x: copyParallax, zIndex: 1 }}>
+              <motion.div
+                className="landing-copy"
+                initial={{ opacity: 0, x: -28 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.55, ease: "easeOut" }}
+              >
 
-            <h1
-              key={headlineSequence}
-              className={`hero-title${headlineSequence ? ' sequence-active' : ''}`}
-              onClick={() => setHeadlineSequence((sequence) => sequence + 1)}
-              onKeyDown={(event) => {
-                if (event.key === 'Enter' || event.key === ' ') {
-                  event.preventDefault();
-                  setHeadlineSequence((sequence) => sequence + 1);
-                }
-              }}
-              role="button"
-              tabIndex={0}
-            // title="Click to play the headline"
-            >
-              <span className="hero-word hero-word-make" aria-label="Make">
-                {'Make'.split('').map((letter, index) => (
-                  <span key={letter + index} aria-hidden="true" style={{ '--letter-index': index }}>{letter}</span>
-                ))}
-              </span>{' '}
-              <span className="hero-word hero-word-the">the</span><br />
-              <span className="hero-word hero-word-moment">moment.</span><br />
-              <span className="landing-title-accent hero-word hero-word-proof hover-capture" onMouseEnter={playShutterHover}>Keep the proof.</span>
-            </h1>
-            <p>
-              A playful photo booth studio for people who want their memories to look as good as they felt.
-            </p>
-            <div className="landing-actions">
-              <Button variant="primary" onClick={() => navigate('/catalog')}>Start a booth <ArrowUpRight size={18} /></Button>
-              <button className="landing-text-action" onClick={handleEditorClick}>Design a template</button>
-            </div>
+                <h1
+                  key={headlineSequence}
+                  className={`hero-title${headlineSequence ? ' sequence-active' : ''}`}
+                  onClick={() => setHeadlineSequence((sequence) => sequence + 1)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                      event.preventDefault();
+                      setHeadlineSequence((sequence) => sequence + 1);
+                    }
+                  }}
+                  role="button"
+                  tabIndex={0}
+                >
+                  <span className="hero-word hero-word-make" aria-label="Make">
+                    {'Make'.split('').map((letter, index) => (
+                      <span key={letter + index} aria-hidden="true" style={{ '--letter-index': index }}>{letter}</span>
+                    ))}
+                  </span>{' '}
+                  <span className="hero-word hero-word-the">the</span><br />
+                  <span className="hero-word hero-word-moment">moment.</span><br />
+                  <span className="landing-title-accent hero-word hero-word-proof hover-capture" onMouseEnter={playShutterHover}>Keep the proof.</span>
+                </h1>
+                <p>
+                  A playful photo booth studio for people who want their memories to look as good as they felt.
+                </p>
+                <div className="landing-actions">
+                  <Button variant="primary" onClick={() => navigate('/catalog')}>Start a booth <ArrowUpRight size={18} /></Button>
+                  <button className="landing-text-action" onClick={handleEditorClick}>Design a template</button>
+                </div>
 
-          </motion.div>
+              </motion.div>
+            </motion.div>
 
-          <motion.div
-            className="landing-showcase"
-            initial={{ opacity: 0, x: 34 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.65, ease: "easeOut", delay: 0.08 }}
-            drag
-            dragMomentum={false}
-            whileDrag={{ scale: 1.015, cursor: 'grabbing' }}
-          >
-            <div className="landing-booth-window">
-              <div className="landing-window-titlebar">
-                <div className="landing-window-controls" aria-hidden="true"><i /><i /><i /></div>
-                <span><Camera size={14} /> iBooth Camera</span>
-                <div />
-              </div>
-              <div className="landing-camera-view">
-                <img src={exampleImage} alt="Friends enjoying an iBooth session" draggable="false" />
-              </div>
-            </div>
-          </motion.div>
-        </motion.section>
-
-        {/* Panel 2: How it works & Updates & Promotion */}
-        <section className="landing-details" style={{
-          flex: '0 0 100%',
-          scrollSnapAlign: 'start',
-          height: '100%',
-          padding: '2.5rem 3rem',
-          boxSizing: 'border-box',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '2.5rem',
-          textAlign: 'left',
-          overflowY: 'auto'
-        }}>
-          <div>
-            <h2 style={{ fontSize: '1.5rem', marginBottom: '1.5rem', fontWeight: 600 }}>How it works</h2>
-            <div style={{ 
-              display: 'flex', 
-              flexDirection: 'row', 
-              gap: '1.5rem', 
-              overflowX: 'auto', 
-              paddingBottom: '1rem',
-              scrollbarWidth: 'thin',
-              msOverflowStyle: 'none'
-            }}>
-              {workflowItems.map((item) => (
-                <div key={item.value} style={{ 
-                  display: 'flex', 
-                  gap: '1rem', 
-                  alignItems: 'baseline',
-                  flex: '0 0 260px',
-                  background: 'var(--code-bg)',
-                  padding: '1.25rem',
-                  borderRadius: '8px',
-                  border: '1px solid var(--border)'
-                }}>
-                  <span style={{ fontFamily: 'var(--mono)', color: 'var(--accent)', fontWeight: 'bold', fontSize: '1.2rem' }}>{item.value}</span>
-                  <div>
-                    <h3 style={{ margin: 0, fontSize: '1.1rem', color: 'var(--text-h)' }}>{item.label}</h3>
-                    <p style={{ margin: '0.25rem 0 0', color: 'var(--text)', fontSize: '0.9rem', lineHeight: '1.4' }}>{item.detail}</p>
+            <motion.div style={{ x: showcaseParallax, zIndex: 2 }}>
+              <motion.div
+                className="landing-showcase"
+                initial={{ opacity: 0, x: 34 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.65, ease: "easeOut", delay: 0.08 }}
+                drag
+                dragMomentum={false}
+                whileDrag={{ scale: 1.015, cursor: 'grabbing' }}
+              >
+                <div className="landing-booth-window">
+                  <div className="landing-window-titlebar">
+                    <div className="landing-window-controls" aria-hidden="true"><i /><i /><i /></div>
+                    <span><Camera size={14} /> iBooth Camera</span>
+                    <div />
+                  </div>
+                  <div className="landing-camera-view">
+                    <img src={exampleImage} alt="Friends enjoying an iBooth session" draggable="false" />
                   </div>
                 </div>
-              ))}
-            </div>
-          </div>
+              </motion.div>
+            </motion.div>
+          </motion.section>
 
-          <div>
-            <h2 style={{ fontSize: '1.5rem', marginBottom: '1.5rem', fontWeight: 600 }}>Latest Updates</h2>
-            {changelog.slice(0, 3).map((release, i) => (
-              <CollapsibleSection
-                key={release.version}
-                title={`v${release.version}`}
-                note={release.date}
-                defaultCollapsed={i !== 0}
+          {/* Panel 2: How it works & Updates & Promotion */}
+          <section className="landing-details" style={{
+            flex: '0 0 100%',
+            scrollSnapAlign: 'start',
+            height: '100%',
+            padding: '2.5rem 3rem',
+            boxSizing: 'border-box',
+            display: 'flex',
+            flexDirection: 'row',
+            gap: '2.5rem',
+            textAlign: 'left',
+            overflowY: 'auto'
+          }}>
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '2.5rem', minWidth: 0, padding: '2.5rem 0 2.5rem 3rem' }}>
+              <motion.div
+                initial={{ opacity: 0, y: 30 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true, amount: 0.3 }}
+                transition={{ duration: 0.6, ease: 'easeOut' }}
               >
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.8rem', paddingLeft: '1.5rem' }}>
-                  {release.items.map((item, j) => (
-                    <div key={j} style={{ display: 'flex', gap: '0.5rem', fontSize: '0.9rem' }}>
-                      <span style={{ 
-                        padding: '2px 6px', 
-                        borderRadius: '4px', 
-                        background: 'var(--accent-bg)', 
-                        color: 'var(--accent)',
-                        fontSize: '0.75rem',
-                        fontWeight: 600,
-                        textTransform: 'uppercase',
-                        alignSelf: 'flex-start',
-                        whiteSpace: 'nowrap'
-                      }}>
-                        {item.type}
-                      </span>
-                      <span style={{ color: 'var(--text)' }}>{item.text}</span>
-                    </div>
+                <h2 style={{ fontSize: '1.5rem', marginBottom: '1.5rem', fontWeight: 600 }}>How it works for Creator</h2>
+                <p style={{ marginBottom: '2rem' }}>We support transparency, simplicity, and flexibility. We provide the tools, you create the magic. Keep the memories!</p>
+                <div style={{
+                  display: 'flex',
+                  flexDirection: 'row',
+                  gap: '1.5rem',
+                  overflowX: 'auto',
+                  paddingBottom: '1rem',
+                  scrollbarWidth: 'thin',
+                  msOverflowStyle: 'none'
+                }}>
+                  {workflowItems.map((item, index) => (
+                    <motion.div 
+                      key={item.value} 
+                      initial={{ opacity: 0, x: 20 }}
+                      whileInView={{ opacity: 1, x: 0 }}
+                      viewport={{ once: true }}
+                      transition={{ duration: 0.5, delay: index * 0.1 + 0.3, ease: 'easeOut' }}
+                      style={{
+                      display: 'flex',
+                      gap: '1rem',
+                      alignItems: 'baseline',
+                      flex: '0 0 260px',
+                      background: 'var(--code-bg)',
+                      padding: '1.25rem',
+                      borderRadius: '8px',
+                      border: '1px solid var(--border)'
+                    }}>
+                      <span style={{ fontFamily: 'var(--mono)', color: 'var(--accent)', fontWeight: 'bold', fontSize: '1.2rem' }}>{item.value}</span>
+                      <div>
+                        <h3 style={{ margin: 0, fontSize: '1.1rem', color: 'var(--text-h)' }}>{item.label}</h3>
+                        <p style={{ margin: '0.25rem 0 0', color: 'var(--text)', fontSize: '0.9rem', lineHeight: '1.4' }}>{item.detail}</p>
+                      </div>
+                    </motion.div>
                   ))}
                 </div>
-              </CollapsibleSection>
-            ))}
-          </div>
-        </section>
-      </main>
+              </motion.div>
 
-      {/* Slide Indicators */}
-      <div style={{
-        position: 'absolute',
-        bottom: '24px',
-        left: '50%',
-        transform: 'translateX(-50%)',
-        display: 'flex',
-        gap: '12px',
-        zIndex: 10,
-        pointerEvents: 'auto'
-      }}>
-        {[0, 1].map((index) => (
-          <button
-            key={index}
-            onClick={() => {
-              containerRef.current?.scrollTo({
-                left: index * containerRef.current.clientWidth,
-                behavior: 'smooth'
-              });
-            }}
-            style={{
-              width: '10px',
-              height: '10px',
-              borderRadius: '50%',
-              background: activeSlide === index ? '#ffffff' : 'rgba(255, 255, 255, 0.4)',
-              border: 'none',
-              padding: 0,
-              cursor: 'pointer',
-              transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
-              transform: activeSlide === index ? 'scale(1.2)' : 'scale(1)',
-              boxShadow: 'none',
-              minHeight: 'auto',
-              minWidth: 'auto'
-            }}
-            title={`Go to panel ${index + 1}`}
-            aria-label={`Go to panel ${index + 1}`}
-          />
-        ))}
+              {/* Jepreto-inspired Content (Stats and Steps) */}
+              <motion.div
+                initial={{ opacity: 0, y: 30 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true, amount: 0.3 }}
+                transition={{ duration: 0.6, ease: 'easeOut', delay: 0.1 }}
+              >
+                <h2 style={{ fontSize: '1.5rem', marginBottom: '1.5rem', fontWeight: 600 }}>Step-by-step Experience</h2>
+                <div style={{
+                  display: 'flex',
+                  flexDirection: 'row',
+                  gap: '1.5rem',
+                  overflowX: 'auto',
+                  paddingBottom: '1rem',
+                  scrollbarWidth: 'thin',
+                  msOverflowStyle: 'none'
+                }}>
+                  {extendedWorkflowItems.map((item, index) => (
+                    <motion.div
+                      key={item.value}
+                      initial={{ opacity: 0, x: 20 }}
+                      whileInView={{ opacity: 1, x: 0 }}
+                      viewport={{ once: true }}
+                      transition={{ duration: 0.5, delay: index * 0.1 + 0.4, ease: 'easeOut' }}
+                      style={{
+                      display: 'flex',
+                      gap: '1rem',
+                      alignItems: 'baseline',
+                      flex: '0 0 260px',
+                      background: 'var(--code-bg)',
+                      padding: '1.25rem',
+                      borderRadius: '8px',
+                      border: '1px solid var(--border)'
+                    }}>
+                      <span style={{ fontFamily: 'var(--mono)', color: 'var(--accent)', fontWeight: 'bold', fontSize: '1.2rem' }}>{item.value}</span>
+                      <div>
+                        <h3 style={{ margin: 0, fontSize: '1.1rem', color: 'var(--text-h)' }}>{item.label}</h3>
+                        <p style={{ margin: '0.25rem 0 0', color: 'var(--text)', fontSize: '0.9rem', lineHeight: '1.4' }}>{item.detail}</p>
+                      </div>
+                    </motion.div>
+                  ))}
+                </div>
+              </motion.div>
+
+              <motion.div
+                initial={{ opacity: 0, y: 30 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true, amount: 0.3 }}
+                transition={{ duration: 0.6, ease: 'easeOut', delay: 0.2 }}
+              >
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginBottom: '1.5rem', alignItems: 'flex-start' }}>
+                  <h2 style={{ fontSize: '1.5rem', margin: 0, fontWeight: 600 }}>Community Stats</h2>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+                    <Button variant="primary" onClick={handleEditorClick} style={{ flexShrink: 0 }}>Become a Creator <Sparkles size={16} style={{ marginLeft: '6px' }} /></Button>
+                    <p style={{ margin: 0, color: 'var(--text)', fontSize: '0.95rem', maxWidth: '500px', lineHeight: '1.5' }}>
+                      Join a growing community of creative minds! Start designing your first template today!
+                    </p>
+                  </div>
+                </div>
+                <div style={{
+                  display: 'flex',
+                  flexDirection: 'row',
+                  gap: '1.5rem',
+                  overflowX: 'auto',
+                  paddingBottom: '1rem',
+                  scrollbarWidth: 'thin',
+                  msOverflowStyle: 'none'
+                }}>
+                  {[
+                    { value: stats.users, label: 'Total creators' },
+                    { value: stats.templates, label: 'Templates created' }
+                  ].map((stat, i) => (
+                    <motion.div 
+                      key={i} 
+                      initial={{ opacity: 0, scale: 0.95 }}
+                      whileInView={{ opacity: 1, scale: 1 }}
+                      viewport={{ once: true }}
+                      transition={{ duration: 0.5, delay: i * 0.1 + 0.5, ease: 'easeOut' }}
+                      style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '0.25rem',
+                      flex: '0 0 200px',
+                      background: 'var(--code-bg)',
+                      padding: '1.25rem',
+                      borderRadius: '8px',
+                      border: '1px solid var(--border)',
+                      alignItems: 'center',
+                      textAlign: 'center'
+                    }}>
+                      <span style={{ fontFamily: 'var(--mono)', color: 'var(--accent)', fontWeight: 'bold', fontSize: '2rem' }}>{stat.value}</span>
+                      <span style={{ color: 'var(--text-h)', fontSize: '1rem', fontWeight: 500 }}>{stat.label}</span>
+                    </motion.div>
+                  ))}
+                </div>
+              </motion.div>
+            </div>
+
+            <div style={{ flex: '0 0 auto', display: 'flex', margin: '-2.5rem 0' }}>
+              <div style={{ height: 'calc(100% + 5rem)' }}>
+                <InfiniteSliderVertical />
+              </div>
+            </div>
+          </section>
+
+          {/* Panel 3: Latest Updates */}
+          <section className="landing-details" style={{
+            flex: '0 0 100%',
+            scrollSnapAlign: 'start',
+            height: '100%',
+            padding: '2.5rem 3rem',
+            boxSizing: 'border-box',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '2.5rem',
+            textAlign: 'left',
+            overflowY: 'auto'
+          }}>
+            <div>
+              <h2 style={{ fontSize: '1.5rem', marginBottom: '1.5rem', fontWeight: 600 }}>Latest Updates</h2>
+              
+              {releases.map((release, i) => {
+                const lines = release.split('\n');
+                const title = lines[0].replace(/^##\s+/, '').trim();
+                const content = lines.slice(1).join('\n');
+                return (
+                  <CollapsibleSection key={title} title={title} defaultCollapsed={i !== 0}>
+                    <div style={{
+                      color: 'var(--text)',
+                      fontSize: '0.95rem',
+                      lineHeight: '1.6'
+                    }}>
+                      <ReactMarkdown
+                        components={{
+                          h1: ({node, ...props}) => <h1 style={{fontSize: '1.8rem', marginTop: 0, marginBottom: '1rem', color: 'var(--text-h)'}} {...props} />,
+                          h2: ({node, ...props}) => <h2 style={{fontSize: '1.4rem', marginTop: '1.5rem', marginBottom: '1rem', color: 'var(--text-h)', borderBottom: '1px solid var(--border)', paddingBottom: '0.5rem'}} {...props} />,
+                          h3: ({node, ...props}) => <h3 style={{fontSize: '1.1rem', marginTop: '1.5rem', marginBottom: '0.8rem', color: 'var(--text-h)', fontWeight: 600}} {...props} />,
+                          ul: ({node, ...props}) => <ul style={{paddingLeft: '1.5rem', marginBottom: '1rem', listStyleType: 'disc'}} {...props} />,
+                          li: ({node, ...props}) => <li style={{marginBottom: '0.5rem'}} {...props} />,
+                          strong: ({node, ...props}) => <strong style={{color: 'var(--text-h)', fontWeight: 600}} {...props} />,
+                          code: ({node, ...props}) => <code style={{background: 'rgba(255,255,255,0.1)', padding: '2px 4px', borderRadius: '4px', fontFamily: 'var(--mono)', fontSize: '0.9em', color: 'var(--accent)'}} {...props} />
+                        }}
+                      >
+                        {content}
+                      </ReactMarkdown>
+                    </div>
+                  </CollapsibleSection>
+                );
+              })}
+            </div>
+          </section>
+        </main>
+
+        {/* Slide Indicators */}
+        <div style={{
+          position: 'absolute',
+          bottom: '24px',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          display: 'flex',
+          gap: '12px',
+          zIndex: 10,
+          pointerEvents: 'auto'
+        }}>
+          {[0, 1, 2].map((index) => (
+            <button
+              key={index}
+              onClick={() => {
+                containerRef.current?.scrollTo({
+                  left: index * containerRef.current.clientWidth,
+                  behavior: 'smooth'
+                });
+              }}
+              style={{
+                width: '12px',
+                height: '12px',
+                borderRadius: '50%',
+                background: activeSlide === index ? 'var(--accent)' : 'rgba(150, 150, 150, 0.5)',
+                border: 'none',
+                padding: 0,
+                cursor: 'pointer',
+                transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
+                transform: activeSlide === index ? 'scale(1.2)' : 'scale(1)',
+                boxShadow: 'none',
+                minHeight: 'auto',
+                minWidth: 'auto'
+              }}
+              title={`Go to panel ${index + 1}`}
+              aria-label={`Go to panel ${index + 1}`}
+            />
+          ))}
+        </div>
       </div>
-    </div>
 
       {showAboutModal && (
         <div

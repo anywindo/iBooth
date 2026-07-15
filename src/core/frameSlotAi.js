@@ -5,6 +5,7 @@ const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
 function loadImage(src) {
   return new Promise((resolve, reject) => {
     const image = new Image();
+    image.crossOrigin = "anonymous";
     image.onload = () => resolve(image);
     image.onerror = reject;
     image.src = src;

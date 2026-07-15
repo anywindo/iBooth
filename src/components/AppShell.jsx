@@ -123,7 +123,6 @@ export function AppShell({ title, subtitle, actions, menu, statusBar, statusBarR
         <footer className="statusbar">
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             {statusBar}
-            <span>Status: {statusLabel}</span>
           </div>
           {statusBarRight}
         </footer>

@@ -411,8 +411,7 @@ export default function BoothScreen({ navigate }) {
 
   const actions = (
     <>
-      {/* <span className="status-pill">{session.captures.filter(Boolean).length}/{template.slots.length} captured</span> */}
-      <Button onClick={() => navigate(returnTo)}>Exit</Button>
+      {/* Empty actions since Exit moved to bottom controls */}
     </>
   );
 
@@ -536,65 +535,76 @@ export default function BoothScreen({ navigate }) {
           </motion.div>
         </section>
         <motion.section 
-          className="booth-controls" style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr' }}
+          style={{ display: 'grid', gridTemplateColumns: 'minmax(620px, 1fr) 430px', gap: '18px', width: '100%' }}
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -10 }}
           transition={{ duration: 0.2 }}
         >
-          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+          {/* Left Panel Controls */}
+          <div className="booth-controls" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <button className="danger" style={{ width: '80px', padding: '0 12px' }} onClick={() => {
+              if (window.confirm('Are you sure you want to exit? Your current photos will be discarded.')) {
+                navigate(returnTo);
+              }
+            }}>Exit</button>
+            
+            <div className="button-row" style={{ flex: 1, justifyContent: 'center', display: 'flex', gap: '8px' }}>
+              {isAutoCapturing ? (
+                <button
+                  className="danger"
+                  onClick={() => {
+                    setIsAutoCapturing(false);
+                    setCountdown(null);
+                    clearCountdownInterval();
+                    clearAutoCaptureTimeout();
+                  }}
+                >
+                  Stop Auto Capture
+                </button>
+              ) : (
+                <>
+                  <button
+                    className="secondary"
+                    onClick={() => setIsMirrored(!isMirrored)}
+                    style={{ marginRight: '8px' }}
+                  >
+                    {isMirrored ? 'Unmirror' : 'Mirror'}
+                  </button>
+                  <select 
+                    style={{ width: 'auto', padding: '0 8px' }} 
+                    value={timerDuration} 
+                    onChange={(e) => setTimerDuration(Number(e.target.value))}
+                  >
+                    <option value={0}>Burst (0s)</option>
+                    <option value={3}>3s Timer</option>
+                    <option value={5}>5s Timer</option>
+                    <option value={10}>10s Timer</option>
+                  </select>
+                  <button
+                    className="primary"
+                    onClick={captureWithCountdown}
+                    disabled={!!countdown || !!session.captures[session.currentIndex]}
+                  >
+                    Capture
+                  </button>
+                  <button
+                    className="primary"
+                    onClick={() => setIsAutoCapturing(true)}
+                    disabled={!!countdown || isComplete}
+                  >
+                    Start Auto Capture
+                  </button>
+                </>
+              )}
+            </div>
+            
+            <div style={{ width: '80px' }}></div> {/* Spacer to perfectly center the main buttons */}
           </div>
-          <div className="button-row" style={{ justifyContent: 'center' }}>
-            {isAutoCapturing ? (
-              <button
-                className="danger"
-                onClick={() => {
-                  setIsAutoCapturing(false);
-                  setCountdown(null);
-                  clearCountdownInterval();
-                  clearAutoCaptureTimeout();
-                }}
-              >
-                Stop Auto Capture
-              </button>
-            ) : (
-              <>
-                <button
-                  className="secondary"
-                  onClick={() => setIsMirrored(!isMirrored)}
-                  style={{ marginRight: '8px' }}
-                >
-                  {isMirrored ? 'Unmirror' : 'Mirror'}
-                </button>
-                <select 
-                  style={{ width: 'auto', padding: '0 8px' }} 
-                  value={timerDuration} 
-                  onChange={(e) => setTimerDuration(Number(e.target.value))}
-                >
-                  <option value={0}>Burst (0s)</option>
-                  <option value={3}>3s Timer</option>
-                  <option value={5}>5s Timer</option>
-                  <option value={10}>10s Timer</option>
-                </select>
-                <button
-                  className="primary"
-                  onClick={captureWithCountdown}
-                  disabled={!!countdown || !!session.captures[session.currentIndex]}
-                >
-                  Capture
-                </button>
-                <button
-                  className="primary"
-                  onClick={() => setIsAutoCapturing(true)}
-                  disabled={!!countdown || isComplete}
-                >
-                  Start Auto Capture
-                </button>
-              </>
-            )}
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-            <button className="warning" onClick={finishSession} disabled={!isComplete}>Finish</button>
+
+          {/* Right Panel Controls */}
+          <div className="booth-controls" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <button className="warning" style={{ width: '100%' }} onClick={finishSession} disabled={!isComplete}>Finish</button>
           </div>
         </motion.section>
       </main>

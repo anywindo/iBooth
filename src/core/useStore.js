@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { DEFAULT_PRESET_ID, OUTPUT, SESSION_KEY, STORAGE_KEY, THEME_KEY, applyTheme, getCanvasPreset, getInitialTheme } from "./constants.js";
 import { supabase } from '../utils/supabase.js';
+import { useAuthStore } from '../store/authStore.js';
 import notifSound from '../assets/notif.mp3';
 
 // Utility to generate a unique ID
@@ -37,6 +38,14 @@ export function normalizeTemplate(template) {
     width: Number(template.width) || preset.width,
     height: Number(template.height) || preset.height,
     bleed: template.bleed !== undefined ? Number(template.bleed) : 2,
+    frameImage: template.frameImage || template.frame_image_url || "",
+    
+    description: template.description || "",
+    tags: template.tags || [],
+    theme: template.theme || "General",
+    colorStyle: template.color_style || "Light",
+    photoCount: template.photoCount || slots.length || 3,
+
     slots: slots.map((slot, index) => ({
       id: slot.id || uid(),
       name: slot.name || `Slot ${index + 1}`,
@@ -205,58 +214,110 @@ export const useStore = create((set, get) => {
 
     fetchTemplates: async (userId) => {
       try {
-        let query = supabase
-          .from('templates')
-          .select('*, profiles:owner_id(display_name)')
-          .order('updated_at', { ascending: false });
-          
-        if (userId) {
-          query = query.eq('owner_id', userId);
+        const templates = JSON.parse(localStorage.getItem('templates') || '[]');
+        
+        // Fetch missing creator names for old templates that only have owner_id
+        const uniqueOwnerIds = [...new Set(templates.filter(t => !t.creator_name && t.owner_id && t.owner_id !== 'local-user').map(t => t.owner_id))];
+        
+        if (uniqueOwnerIds.length > 0) {
+          const { data: profiles } = await supabase
+            .from('profiles')
+            .select('id, display_name')
+            .in('id', uniqueOwnerIds);
+
+          if (profiles) {
+            const profileMap = Object.fromEntries(profiles.map(p => [p.id, p.display_name]));
+            let updated = false;
+            
+            // Clean up 'You'
+            templates.forEach(t => {
+              if (t.creator_name === 'You') {
+                t.creator_name = 'Local User';
+                updated = true;
+              }
+            });
+
+            // Backfill from Supabase
+            templates.forEach(t => {
+              if (!t.creator_name && profileMap[t.owner_id]) {
+                t.creator_name = profileMap[t.owner_id];
+                updated = true;
+              }
+            });
+
+            // Attach current user's name to their own templates permanently
+            const currentUser = useAuthStore.getState().user;
+            if (currentUser) {
+              templates.forEach(t => {
+                if (!t.creator_name && (t.owner_id === currentUser.id || t.owner_id === 'local-user')) {
+                  t.creator_name = currentUser.name;
+                  updated = true;
+                }
+              });
+            }
+            
+            // Persist the names so we don't have to fetch them again
+            if (updated) {
+              localStorage.setItem('templates', JSON.stringify(templates));
+            }
+          }
         }
-        
-        const { data, error } = await query;
-        if (error) throw error;
-        
-        return { success: true, data: data.map(normalizeTemplate) };
+
+        return { success: true, data: templates.map(normalizeTemplate) };
       } catch (error) {
         return { success: false, error: error.message };
       }
     },
 
     saveTemplate: async (template, userId, frameFile = null) => {
-      if (!userId) return { success: false, error: 'User ID required' };
       try {
         let publicUrl = template.frameImage || null;
 
         if (frameFile) {
-          const path = `${userId}/${crypto.randomUUID()}-frame.webp`;
-          const { error: uploadError } = await supabase.storage.from('frames').upload(path, frameFile);
-          if (uploadError) throw uploadError;
-          const { data } = supabase.storage.from('frames').getPublicUrl(path);
-          publicUrl = data.publicUrl;
+          // Since we have no backend, convert frameFile to base64
+          publicUrl = await new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(reader.result);
+            reader.onerror = reject;
+            reader.readAsDataURL(frameFile);
+          });
         }
 
+        const currentUser = useAuthStore.getState().user;
+        const lastKnownName = localStorage.getItem('lastKnownName') || 'Guest';
+        const creatorName = template.creator_name === 'You' ? 'Local User' : (template.creator_name || template.profiles?.display_name || currentUser?.name || lastKnownName);
+
         const toSave = {
-          id: template.id === 'default-template' ? undefined : template.id,
-          owner_id: userId,
+          id: template.id === 'default-template' ? uid() : template.id,
+          owner_id: userId || 'local-user',
+          creator_name: creatorName,
           name: template.name,
           preset_id: template.presetId,
           dpi: template.dpi,
           width: template.width,
           height: template.height,
           slots: template.slots,
-          frame_image_url: publicUrl
+          frame_image_url: publicUrl,
+          description: template.description,
+          tags: template.tags,
+          theme: template.theme,
+          color_style: template.colorStyle,
+          created_at: template.created_at || new Date().toISOString(),
+          updated_at: new Date().toISOString()
         };
 
-        const { data, error } = await supabase
-          .from('templates')
-          .upsert(toSave)
-          .select()
-          .single();
-
-        if (error) throw error;
+        const templates = JSON.parse(localStorage.getItem('templates') || '[]');
+        const index = templates.findIndex(t => t.id === toSave.id);
         
-        const savedTemplate = normalizeTemplate({ ...data, frameImage: data.frame_image_url });
+        if (index > -1) {
+          templates[index] = toSave;
+        } else {
+          templates.unshift(toSave);
+        }
+        
+        localStorage.setItem('templates', JSON.stringify(templates));
+
+        const savedTemplate = normalizeTemplate(toSave);
         get().setTemplate(savedTemplate);
         get().saveTemplateQuietly();
         
@@ -267,15 +328,11 @@ export const useStore = create((set, get) => {
     },
 
     deleteTemplate: async (templateId, userId) => {
-      if (!userId) return { success: false, error: 'User ID required' };
       if (!templateId || templateId === 'default-template') return { success: false, error: 'Invalid template ID' };
       try {
-        const { error } = await supabase
-          .from('templates')
-          .delete()
-          .eq('id', templateId)
-          .eq('owner_id', userId);
-        if (error) throw error;
+        const templates = JSON.parse(localStorage.getItem('templates') || '[]');
+        const newTemplates = templates.filter(t => t.id !== templateId);
+        localStorage.setItem('templates', JSON.stringify(newTemplates));
         return { success: true };
       } catch (error) {
         return { success: false, error: error.message };

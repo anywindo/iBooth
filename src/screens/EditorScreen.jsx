@@ -141,9 +141,11 @@ export default function EditorScreen({ navigate }) {
   const [editMenuOpen, setEditMenuOpen] = useState(false);
   const [helpMenuOpen, setHelpMenuOpen] = useState(false);
   const [showAboutModal, setShowAboutModal] = useState(false);
+  const [showSaveSuccessModal, setShowSaveSuccessModal] = useState(false);
   const [saveStatus, setSaveStatus] = useState(() => (
     template.id === 'default-template' ? 'unsaved' : 'saved'
   ));
+  const [isGeneratingMetadata, setIsGeneratingMetadata] = useState(false);
   const [showResumeModal, setShowResumeModal] = useState(() => {
     // Show prompt if we didn't come from an explicit edit action (where returnTo is set to '/catalog')
     // and if there's a template in the store that isn't completely untouched.
@@ -164,22 +166,8 @@ export default function EditorScreen({ navigate }) {
   const previousSaveStatus = useRef(saveStatus);
 
   useEffect(() => {
-    const previous = previousSaveStatus.current;
-
-    if (previous === saveStatus) {
-      return;
-    }
-
-    if (saveStatus === 'unsaved' && previous === 'saved') {
-      showToast('Changes are not saved to cloud yet.', 'warning');
-    }
-
-    if (saveStatus === 'saving' && previous !== 'saving') {
-      showToast('Saving template to cloud...', 'info');
-    }
-
     previousSaveStatus.current = saveStatus;
-  }, [saveStatus, showToast]);
+  }, [saveStatus]);
 
   useEffect(() => {
     const node = scrollerRef.current;
@@ -404,6 +392,104 @@ export default function EditorScreen({ navigate }) {
     applyAiResult(template, result);
   }
 
+  async function autoFillMetadata() {
+    const apiKey = import.meta.env.VITE_GEMINI_KEY;
+    if (!apiKey) {
+      showToast('Error: VITE_GEMINI_KEY is missing in .env', 'error');
+      return;
+    }
+
+    setIsGeneratingMetadata(true);
+    showToast('AI is generating metadata...', 'info');
+
+    try {
+      const prompt = `Analyze this photobooth template layout/image and generate highly specific metadata for it.
+Template Name: "${template.name}"
+Size: ${template.width}x${template.height}
+Slots: ${template.slots?.length || 0}
+Format: ${template.details?.format || 'Unknown'}
+
+Instructions:
+1. Pay close attention to the "Template Name". If it contains specific acronyms, event names (like KKN, prom, graduation), or themes, heavily base your description and tags around that context.
+2. If an image is provided, read any text on the frame and analyze the specific graphics/branding to infer the exact event type.
+3. Be hyper-specific. Do not generate generic responses like "Capture unforgettable moments." Tailor the description strictly to what this template is clearly designed for.`;
+
+      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          systemInstruction: {
+            parts: [{ text: "You are an expert copywriter for a photobooth app. Your job is to generate highly engaging, concise, and hyper-specific metadata based on the provided template attributes and its image. You excel at inferring the exact context (e.g. community service, university events, specific parties) from brief titles and visual clues, avoiding generic filler." }]
+          },
+          contents: [{
+            parts: [
+              { text: prompt },
+              ...(template.frameImage && template.frameImage.match(/^data:(image\/[a-zA-Z+]+);base64,(.+)$/) ? [{
+                inlineData: {
+                  mimeType: template.frameImage.match(/^data:(image\/[a-zA-Z+]+);base64,(.+)$/)[1],
+                  data: template.frameImage.match(/^data:(image\/[a-zA-Z+]+);base64,(.+)$/)[2]
+                }
+              }] : [])
+            ]
+          }],
+          generationConfig: {
+            temperature: 0.7,
+            responseMimeType: "application/json",
+            responseSchema: {
+              type: "OBJECT",
+              properties: {
+                description: {
+                  type: "STRING",
+                  description: "A short, engaging 1-2 sentence description highlighting the template's vibe."
+                },
+                tags: {
+                  type: "ARRAY",
+                  items: { type: "STRING" },
+                  description: "4 to 6 relevant lowercase tags (no hashtags, e.g. 'vintage', 'minimal')."
+                },
+                theme: {
+                  type: "STRING",
+                  enum: ["General", "Wedding", "Birthday", "Corporate", "Holiday", "Other"]
+                },
+                colorStyle: {
+                  type: "STRING",
+                  enum: ["Light", "Dark", "Monochrome", "Colorful"]
+                }
+              },
+              required: ["description", "tags", "theme", "colorStyle"]
+            }
+          }
+        })
+      });
+
+      if (!res.ok) {
+        throw new Error(`API error: ${res.status}`);
+      }
+
+      const data = await res.json();
+      const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+
+      if (text) {
+        const metadata = JSON.parse(text);
+        updateTemplate({
+          ...template,
+          description: metadata.description || template.description,
+          tags: metadata.tags || template.tags,
+          theme: metadata.theme || template.theme,
+          colorStyle: metadata.colorStyle || template.colorStyle
+        });
+        showToast('Metadata successfully generated!', 'success');
+      } else {
+        throw new Error('No content generated');
+      }
+    } catch (err) {
+      console.error(err);
+      showToast('Error: AI quota exceeded or unavailable.', 'error');
+    } finally {
+      setIsGeneratingMetadata(false);
+    }
+  }
+
   async function importTemplate(event) {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -536,12 +622,12 @@ export default function EditorScreen({ navigate }) {
     window.addEventListener('pointerup', up);
   }
 
-  async function saveTemplateToBackend(quiet = false) {
-    if (!user) {
-      if (!quiet) showToast('Please log in to save templates to cloud', 'error');
-      return;
+  async function saveTemplateToBackend(quietArg = false) {
+    const quiet = quietArg === true;
+    if (!quiet) {
+      setSaveStatus('saving');
+      showToast('Saving template...', 'info');
     }
-    if (!quiet) setSaveStatus('saving');
     try {
       let compressedBlob = null;
       if (template.frameImage && template.frameImage.startsWith('data:')) {
@@ -560,13 +646,14 @@ export default function EditorScreen({ navigate }) {
       saveTemplateQuietly();
       if (!quiet) {
         setSaveStatus('saved');
-        showToast('Template saved to cloud!', 'success');
+        showToast('Template successfully saved!', 'success');
+        setShowSaveSuccessModal(true);
       }
     } catch (err) {
       console.error(err);
       if (!quiet) {
         setSaveStatus('unsaved');
-        showToast('Failed to save to cloud.', 'error');
+        showToast('Failed to save template.', 'error');
       }
     }
   }
@@ -582,7 +669,7 @@ export default function EditorScreen({ navigate }) {
               showToast('Started new template', 'success');
             }}>New Template</button>
             <div className="menu-divider" />
-            <button className="menu-dropdown-item" onClick={saveTemplateToBackend} style={{ color: '#10b981', fontWeight: 'bold' }}>Save to Cloud</button>
+            <button className="menu-dropdown-item" onClick={saveTemplateToBackend} style={{ color: '#10b981', fontWeight: 'bold' }}>Save Template</button>
             <button className="menu-dropdown-item" onClick={() => importRef.current?.click()}>Import from JSON...</button>
             <button className="menu-dropdown-item" onClick={() => downloadJson(template, `${slug(template.name)}.json`)}>Export to JSON...</button>
             <div className="menu-divider" />
@@ -621,6 +708,9 @@ export default function EditorScreen({ navigate }) {
       {/* <span className={`save-status ${saveStatus}`} >
         {saveStatus === 'saving' ? 'Saving...' : saveStatus === 'unsaved' ? 'Unsaved changes' : 'All changes saved'}
       </span> */}
+      <Button variant="primary" onClick={saveTemplateToBackend} disabled={saveStatus === 'saving'}>
+        {saveStatus === 'saving' ? 'Saving...' : 'Save'}
+      </Button>
       <Button variant="warning" onClick={() => navigate(`/booth/${template.id}`, { state: { returnTo } })}>Start</Button>
       <input ref={importRef} className="hidden-file" type="file" accept="application/json" onChange={importTemplate} />
     </>
@@ -661,14 +751,52 @@ export default function EditorScreen({ navigate }) {
       <main className="editor-layout">
         <aside className="panel">
           <CollapsibleSection title="Template" note="Frame and layout">
-            <label>Name<input value={template.name} onChange={(event) => updateTemplate({ ...template, name: event.target.value })} /></label>
-            <div className="frame-actions">
+            <label>Name<input value={template.name || ''} onChange={(event) => updateTemplate({ ...template, name: event.target.value })} /></label>
+            <label>Description
+              <textarea
+                value={template.description || ''}
+                onChange={(event) => updateTemplate({ ...template, description: event.target.value })}
+                rows={2}
+                style={{ width: '100%', resize: 'vertical', marginTop: '4px', background: 'var(--bg)', color: 'var(--text)', border: '1px solid var(--border)', borderRadius: '6px', padding: '8px' }}
+              />
+            </label>
+            <label>Tags (comma separated)
+              <input
+                value={template.tags?.join(', ') || ''}
+                onChange={(event) => updateTemplate({ ...template, tags: event.target.value.split(',').map(t => t.trim()).filter(Boolean) })}
+                placeholder="vintage, minimal, etc."
+              />
+            </label>
+            <div className="form-grid">
+              <label>Theme
+                <select value={template.theme || 'General'} onChange={(event) => updateTemplate({ ...template, theme: event.target.value })}>
+                  <option value="General">General</option>
+                  <option value="Wedding">Wedding</option>
+                  <option value="Birthday">Birthday</option>
+                  <option value="Corporate">Corporate</option>
+                  <option value="Holiday">Holiday</option>
+                  <option value="Other">Other</option>
+                </select>
+              </label>
+              <label>Color Style
+                <select value={template.colorStyle || 'Light'} onChange={(event) => updateTemplate({ ...template, colorStyle: event.target.value })}>
+                  <option value="Light">Light</option>
+                  <option value="Dark">Dark</option>
+                  <option value="Monochrome">Monochrome</option>
+                  <option value="Colorful">Colorful</option>
+                </select>
+              </label>
+            </div>
+            <div className="frame-actions" style={{ marginTop: '12px' }}>
               <Button variant="primary" className="frame-upload-button" onClick={() => frameRef.current?.click()}>
                 <span>Upload Frame</span>
                 <small>PNG artwork only</small>
               </Button>
               <Button variant="ai" onClick={matchSlots}>
                 <span>Auto-Match Slots</span>
+              </Button>
+              <Button variant="ai" onClick={autoFillMetadata} disabled={isGeneratingMetadata}>
+                <span>{isGeneratingMetadata ? 'Generating...' : 'Auto-fill Metadata'}</span>
               </Button>
               <Button variant="ghost" className="frame-clear-button" onClick={() => updateTemplate({ ...template, frameImage: '' })}>Clear Frame</Button>
             </div>
@@ -879,6 +1007,43 @@ export default function EditorScreen({ navigate }) {
                 setShowResumeModal(false);
               }}>Start New</Button>
               <Button variant="primary" onClick={() => setShowResumeModal(false)}>Resume Work</Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showSaveSuccessModal && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 0, left: 0, right: 0, bottom: 0,
+            backgroundColor: 'rgba(0,0,0,0.6)',
+            zIndex: 9999,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            backdropFilter: 'blur(3px)'
+          }}
+        >
+          <div style={{
+            background: 'var(--panel)',
+            padding: '24px',
+            borderRadius: '12px',
+            maxWidth: '400px',
+            width: '90vw',
+            border: '1px solid var(--border)'
+          }}>
+            <h3 style={{ margin: '0 0 16px 0', fontSize: '18px' }}>Template Saved</h3>
+            <p style={{ margin: '0 0 24px 0', fontSize: '14px', color: 'var(--muted)' }}>
+              Your template has been successfully saved. What would you like to do next?
+            </p>
+            <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
+              <Button variant="secondary" onClick={() => setShowSaveSuccessModal(false)}>
+                Continue Editing
+              </Button>
+              <Button variant="primary" onClick={() => navigate('/catalog')}>
+                Go to Catalog
+              </Button>
             </div>
           </div>
         </div>

@@ -1,17 +1,11 @@
-# Changelog
+## [0.0.1-alpha] - 2026-07-15
 
-All notable changes to this project will be documented in this file.
+### Initial Project Release
 
-## [0.0.1-alpha] - 2026-07-05
-
-### Added
-
-- Photo strip designer with template catalog and real-time preview.
-- Secure user accounts with sign-up, log-in, and password recovery.
-- Automatic email delivery for password resets.
-- Visual dashboard to monitor system health and request activity.
-
-### Improved
-
-- Added a Back button to the catalog and editor pages for easier navigation.
-- Expanded the template catalog to full screen for a cleaner, spacious layout.
+- We launched a brand new home page! It features a cool dark theme and two columns of photos that scroll endlessly up and down. As you scroll down the page, different sections smoothly slide into view.
+- We built a full photo strip creator. You can open a design studio right in your browser, pick colors, adjust sizes, and see exactly what your photo strip will look like before you save it.
+- You can now browse a huge, full-screen catalog of photo strip templates to find inspiration or a starting point for your own designs.
+- We added a secure account system. You can sign up, log in, and even use your GitHub account to get in quickly. If you forget your password, the system will automatically email you a link to reset it.
+- Every user gets their own personal profile page. It looks great in the dark theme and lets you easily keep track of all the templates you have created.
+- Behind the scenes, we completely changed how the app stores information. Instead of running our own custom server, we now securely save all your designs and account information using a fast, reliable cloud database. This makes the app much faster and less likely to break.
+- We created a hidden dashboard for ourselves so we can monitor the app. It lets us see how many people are visiting and makes sure everything is running smoothly without any errors.

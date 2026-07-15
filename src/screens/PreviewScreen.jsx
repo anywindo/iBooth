@@ -92,6 +92,23 @@ export default function PreviewScreen({ navigate }) {
     image.src = session.image;
   }, [session.image, includeBleed, previewBleed, previewBleedColor, output.dpi, format, ppi]);
 
+  useEffect(() => {
+    const pane = paneRef.current;
+    if (!pane) return;
+
+    const handleWheel = (e) => {
+      if (e.ctrlKey) {
+        e.preventDefault();
+        const zoomSensitivity = 0.005;
+        const zoomChange = e.deltaY * -zoomSensitivity;
+        setPreviewZoom((prev) => Math.min(Math.max(0.18, prev + zoomChange), 1.6));
+      }
+    };
+
+    pane.addEventListener('wheel', handleWheel, { passive: false });
+    return () => pane.removeEventListener('wheel', handleWheel);
+  }, [setPreviewZoom]);
+
   const scale = ppi / output.dpi;
   const imageWidth = Math.round(output.width * scale);
   const imageHeight = Math.round(output.height * scale);
@@ -162,24 +179,27 @@ export default function PreviewScreen({ navigate }) {
 
   const actions = (
     <>
-      {/* <Button variant="primary" onClick={downloadFinal}>Download</Button> */}
-      {/* <Button onClick={printFinal}>Print</Button> */}
-      <Button variant="warning" onClick={() => { setBooth(null); navigate(`/booth/${template.id}`, { state: { returnTo } }); }}>New Session</Button>
-      <Button variant="danger" onClick={() => { setBooth(null); navigate(returnTo); }}>Exit</Button>
+      <Button variant="warning" onClick={() => { 
+        if (window.confirm('Are you sure you want to start a new session? Your current photos will be discarded.')) {
+          setBooth(null); 
+          navigate(`/booth/${template.id}`, { state: { returnTo } }); 
+        }
+      }}>New Session</Button>
     </>
   );
 
   return (
     <AppShell title="Preview" actions={actions}>
-      <main className="preview-layout">
-        <motion.section
-          ref={paneRef}
-          className="final-pane"
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -10 }}
-          transition={{ duration: 0.2 }}
-        >
+      <main className="preview-layout" style={{ display: 'flex', flexDirection: 'column', height: '100%', boxSizing: 'border-box' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(620px, 1fr) 340px', gap: '24px', flex: 1, overflow: 'hidden' }}>
+          <motion.section
+            ref={paneRef}
+            className="final-pane"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.2 }}
+          >
           <motion.div
             initial={{ scale: 0.8, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
@@ -254,9 +274,34 @@ export default function PreviewScreen({ navigate }) {
             <div className="info-row"><span>Resolution</span><strong>{ppi} DPI</strong></div>
             <div className="info-row"><span>Color</span><strong>{colorMode.toUpperCase()}</strong></div>
           </div>
-          <Button variant="primary" onClick={downloadFinal}>Download</Button>
-          <Button onClick={printFinal}>Print</Button>
         </aside>
+        </div>
+
+        {/* Bottom Bar */}
+        <motion.section 
+          style={{ display: 'grid', gridTemplateColumns: 'minmax(620px, 1fr) 340px', gap: '24px', width: '100%', marginTop: '24px', flexShrink: 0 }}
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -10 }}
+          transition={{ duration: 0.2 }}
+        >
+          {/* Left Panel Controls */}
+          <div className="booth-controls" style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-start' }}>
+            <Button variant="secondary" onClick={() => navigate(`/booth/${template.id}`, { state: { returnTo } })}>Back to Booth</Button>
+            <Button variant="danger" style={{ marginLeft: '12px' }} onClick={() => { 
+              if (window.confirm('Are you sure you want to exit? Your current photos will be discarded.')) {
+                setBooth(null); 
+                navigate(returnTo); 
+              }
+            }}>Exit</Button>
+          </div>
+          
+          {/* Right Panel Controls */}
+          <div className="button-row" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <Button variant="primary" style={{ width: '100%' }} onClick={downloadFinal}>Download</Button>
+            <Button style={{ width: '100%' }} onClick={printFinal}>Print</Button>
+          </div>
+        </motion.section>
       </main>
     </AppShell>
   );

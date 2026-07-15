@@ -12,6 +12,10 @@ export const useAuthStore = create((set, get) => {
       if (session) {
         const emailPrefix = session.user?.email ? session.user.email.split('@')[0] : 'User';
         
+        if (session.user) {
+          localStorage.setItem('lastKnownName', emailPrefix);
+        }
+        
         // Unblock UI immediately with base user data
         set({ 
           user: { ...session.user, name: emailPrefix }, 
@@ -21,23 +25,14 @@ export const useAuthStore = create((set, get) => {
 
         // Delay the profile fetch slightly to ensure the Supabase client has 
         // completely finished initializing its internal auth headers for INITIAL_SESSION
-        setTimeout(async () => {
-          try {
-            const { data: profile, error } = await supabase
-              .from('profiles')
-              .select('*')
-              .eq('id', session.user.id)
-              .single();
-              
-            if (profile?.display_name) {
-              set(state => ({ 
-                user: { ...state.user, ...session.user, name: profile.display_name }
-              }));
-            }
-          } catch (e) {
-            console.error('Failed to fetch profile', e);
-          }
-        }, 100);
+        // Use user_metadata or emailPrefix
+        const name = session.user?.user_metadata?.display_name || emailPrefix;
+        if (name) {
+          localStorage.setItem('lastKnownName', name);
+        }
+        set(state => ({ 
+          user: { ...state.user, ...session.user, name }
+        }));
       } else {
         set({ user: null, isAuthenticated: false, isLoading: false });
       }
@@ -71,16 +66,17 @@ export const useAuthStore = create((set, get) => {
         if (error) throw error;
         
         if (session) {
-          const { data: profile } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', session.user.id)
-            .single();
+          const name = session.user?.user_metadata?.display_name;
             
           const emailPrefix = session.user?.email ? session.user.email.split('@')[0] : 'User';
+          
+          const resolvedName = name || emailPrefix;
+          if (resolvedName) {
+            localStorage.setItem('lastKnownName', resolvedName);
+          }
             
           set({ 
-            user: { ...session.user, name: profile?.display_name || emailPrefix }, 
+            user: { ...session.user, name: resolvedName }, 
             isAuthenticated: true, 
             isLoading: false 
           });
@@ -124,11 +120,7 @@ export const useAuthStore = create((set, get) => {
         let name = data.name;
 
         if (name) {
-          const { error } = await supabase
-            .from('profiles')
-            .update({ display_name: name })
-            .eq('id', user.id);
-            
+          const { error } = await supabase.auth.updateUser({ data: { display_name: name } });
           if (error) throw error;
         }
 
@@ -168,13 +160,7 @@ export const useAuthStore = create((set, get) => {
         ]);
         if (result.error) throw result.error;
 
-        // Create profile
-        if (result.data?.user) {
-          await supabase.from('profiles').insert({
-            id: result.data.user.id,
-            display_name: name || email.split('@')[0]
-          });
-        }
+        // Removed profiles table insert
 
         return { success: true };
       } catch (error) {
