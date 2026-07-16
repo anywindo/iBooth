@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
 import { useStore } from '../core/useStore';
 import { Sun, Moon } from 'lucide-react';
+import defaultLogo from '../assets/ibootlogo-cb.png';
+import iconLogo from '../assets/favicon.png';
 
 export function AppShell({ title, subtitle, actions, menu, statusBar, statusBarRight, statusLabel = 'Clear', children, showBackButton = false, onBack, hideAuthButton = false, hideAppearance = false }) {
   const { user, logout } = useAuthStore();
@@ -48,8 +50,12 @@ export function AppShell({ title, subtitle, actions, menu, statusBar, statusBarR
               color: 'inherit',
             }}
           >
-            <img src="/favicon.ico" alt="iBooth Logo" style={{ width: '30px', height: '30px', borderRadius: '8px', objectFit: 'contain' }} />
-            <span>{title}</span>
+            <img src={iconLogo} alt="iBooth Icon" style={{ width: '30px', height: '30px', borderRadius: '8px', objectFit: 'contain' }} />
+            {(!title || title === 'iBooth') ? (
+              <img src={defaultLogo} alt="iBooth Branding" style={{ width: 'auto', height: '24px', objectFit: 'contain' }} />
+            ) : (
+              <span>{title}</span>
+            )}
           </button>
           {showBackButton && (
             <button className="back-button" onClick={onBack} aria-label="Back to home">

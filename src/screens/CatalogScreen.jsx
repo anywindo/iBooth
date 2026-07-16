@@ -54,13 +54,13 @@ export const TemplateThumbnail = ({ template }) => {
       boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
     }}>
       {!(template.frameImage || template.frame_image_url) && template.slots?.map(slot => (
-        <div key={slot.id} style={{ 
-          position: 'absolute', 
-          left: `${(slot.x / tWidth) * 100}%`, 
-          top: `${(slot.y / tHeight) * 100}%`, 
-          width: `${(slot.width / tWidth) * 100}%`, 
-          height: `${(slot.height / tHeight) * 100}%`, 
-          borderRadius: slot.radius ? `${(slot.radius / tWidth) * 100}%` : 0, 
+        <div key={slot.id} style={{
+          position: 'absolute',
+          left: `${(slot.x / tWidth) * 100}%`,
+          top: `${(slot.y / tHeight) * 100}%`,
+          width: `${(slot.width / tWidth) * 100}%`,
+          height: `${(slot.height / tHeight) * 100}%`,
+          borderRadius: slot.radius ? `${(slot.radius / tWidth) * 100}%` : 0,
           backgroundColor: '#e2e8f0',
           border: '1px solid #cbd5e1',
           transform: `rotate(${slot.rotation || 0}deg)`
@@ -213,8 +213,8 @@ export default function CatalogScreen({ navigate }) {
     return processedTemplates
       .filter((template) => {
         const query = searchQuery.toLowerCase().trim();
-        const matchesSearch = !query || 
-          (template.name || '').toLowerCase().includes(query) || 
+        const matchesSearch = !query ||
+          (template.name || '').toLowerCase().includes(query) ||
           (template.tags && Array.isArray(template.tags) && template.tags.some(tag => tag.toLowerCase().includes(query)));
 
         let matchesTab = true;
@@ -331,7 +331,7 @@ export default function CatalogScreen({ navigate }) {
       <main className="editor-layout" style={{ gridTemplateColumns: '300px minmax(640px, 1fr)' }}>
         <aside className="panel" style={{ overflowY: 'auto' }}>
           <div style={{ padding: '24px 20px 16px 20px', borderBottom: '1px solid var(--border)' }}>
-            <h1 style={{ fontSize: '20px', fontWeight: 800, margin: 0, color: 'var(--text-h)', lineHeight: '1.2' }}>Template Catalog</h1>
+            {/* <h1 style={{ fontSize: '20px', fontWeight: 800, margin: 0, color: 'var(--text-h)', lineHeight: '1.2' }}>Template Catalog</h1> */}
             <p style={{ fontSize: '12px', color: 'var(--text)', margin: '8px 0 0 0', lineHeight: '1.4' }}>Pick a strip to start a photo booth session.</p>
           </div>
           <CollapsibleSection title="FILTERS" note="Find templates">
@@ -380,15 +380,15 @@ export default function CatalogScreen({ navigate }) {
               </select>
             </label>
 
-            <Button 
-              style={{ marginTop: '16px', width: '100%' }} 
+            <Button
+              style={{ marginTop: '16px', width: '100%' }}
               onClick={resetFilters}
               disabled={!(searchQuery || sortOrder !== 'newest' || filterFormat !== 'all' || filterSlots !== 'all' || activeTab !== 'all')}
             >
               Reset Filters
             </Button>
           </CollapsibleSection>
-          
+
           <CollapsibleSection title="POPULAR KEYWORDS" note="Click to search">
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
               {popularKeywords.map(keyword => {
@@ -647,11 +647,11 @@ export default function CatalogScreen({ navigate }) {
                             <p style={{ marginTop: '8px' }}>Created {formatTemplateDate(template.created_at)}</p>
                           </div>
                           <div className="catalog-card-actions">
-                          {(isAuthenticated && (user?.role === 'super_admin' || user?.id === template.owner_id)) && (
-                            <Button onClick={(e) => { e.stopPropagation(); loadTemplateToEditor(template); }}>Edit</Button>
-                          )}
-                          <Button variant="primary" onClick={(e) => { e.stopPropagation(); startBoothSession(template); }}>Start</Button>
-                          {(isAuthenticated && (user?.role === 'super_admin' || user?.id === template.owner_id)) && (
+                            {(isAuthenticated && (user?.role === 'super_admin' || user?.id === template.owner_id)) && (
+                              <Button onClick={(e) => { e.stopPropagation(); loadTemplateToEditor(template); }}>Edit</Button>
+                            )}
+                            <Button variant="primary" onClick={(e) => { e.stopPropagation(); startBoothSession(template); }}>Start</Button>
+                            {(isAuthenticated && (user?.role === 'super_admin' || user?.id === template.owner_id)) && (
                               <Button
                                 className="catalog-delete-button"
                                 title="Delete template"

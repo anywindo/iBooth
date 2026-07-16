@@ -10,6 +10,8 @@ export default function AuthModal({ onClose, initialView = 'login' }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [passwordConfirmation, setPasswordConfirmation] = useState('');
+  const [termsAccepted, setTermsAccepted] = useState(false);
+  const [privacyAccepted, setPrivacyAccepted] = useState(false);
   const [formError, setFormError] = useState('');
   
   const [isLoading, setIsLoading] = useState(false);
@@ -45,6 +47,13 @@ export default function AuthModal({ onClose, initialView = 'login' }) {
         setIsLoading(false);
         return;
       }
+      
+      if (!termsAccepted || !privacyAccepted) {
+        setFormError('Please read and accept both the Terms of Service and Privacy Policy to continue.');
+        setIsLoading(false);
+        return;
+      }
+      
       const result = await register({ name, email, password, password_confirmation: passwordConfirmation });
       if (result.success) {
         if (result.requiresEmailConfirmation) {
@@ -137,16 +146,28 @@ export default function AuthModal({ onClose, initialView = 'login' }) {
           />
         </div>
         {view === 'register' && (
-          <div>
-            <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 600 }}>Confirm Password</label>
-            <input 
-              type="password" 
-              value={passwordConfirmation} 
-              onChange={(e) => setPasswordConfirmation(e.target.value)}
-              style={{ width: '100%', padding: '0.5rem', borderRadius: '6px', border: '1px solid #ccc' }}
-              required 
-            />
-          </div>
+          <>
+            <div>
+              <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 600 }}>Confirm Password</label>
+              <input 
+                type="password" 
+                value={passwordConfirmation} 
+                onChange={(e) => setPasswordConfirmation(e.target.value)}
+                style={{ width: '100%', padding: '0.5rem', borderRadius: '6px', border: '1px solid #ccc' }}
+                required 
+              />
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: '0.5rem' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '14px', cursor: 'pointer', fontWeight: 'normal' }}>
+                <input type="checkbox" checked={termsAccepted} onChange={(e) => setTermsAccepted(e.target.checked)} required style={{ cursor: 'pointer', width: 'auto', height: 'auto', margin: 0, padding: 0 }} />
+                <span>I have read and agree to the <a href="/terms" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent)', textDecoration: 'underline' }}>Terms of Service</a></span>
+              </label>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '14px', cursor: 'pointer', fontWeight: 'normal' }}>
+                <input type="checkbox" checked={privacyAccepted} onChange={(e) => setPrivacyAccepted(e.target.checked)} required style={{ cursor: 'pointer', width: 'auto', height: 'auto', margin: 0, padding: 0 }} />
+                <span>I have read and agree to the <a href="/privacy" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent)', textDecoration: 'underline' }}>Privacy Policy</a></span>
+              </label>
+            </div>
+          </>
         )}
       </>
     );

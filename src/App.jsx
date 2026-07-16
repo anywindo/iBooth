@@ -9,6 +9,8 @@ import CatalogScreen from './screens/CatalogScreen.jsx';
 import ProfileScreen from './screens/ProfileScreen.jsx';
 import ResetPasswordScreen from './screens/ResetPasswordScreen.jsx';
 import AuthScreen from './screens/AuthScreen.jsx';
+import PrivacyScreen from './screens/PrivacyScreen.jsx';
+import TermsScreen from './screens/TermsScreen.jsx';
 import Toast from './components/Toast.jsx';
 import { CookieConsent } from './components/CookieConsent.jsx';
 import { useAuthStore } from './store/authStore';
@@ -74,6 +76,8 @@ function AppContent() {
         />
         <Route path="/auth" element={<AuthScreen navigate={navigate} />} />
         <Route path="/reset-password" element={<ResetPasswordScreen navigate={navigate} />} />
+        <Route path="/privacy" element={<PrivacyScreen />} />
+        <Route path="/terms" element={<TermsScreen />} />
       </Routes>
     </AnimatePresence>
   );

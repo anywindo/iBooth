@@ -168,14 +168,14 @@ export default function LandingScreen() {
     if (!containerRef.current) return;
     const { scrollLeft, clientWidth } = containerRef.current;
     const index = Math.round(scrollLeft / clientWidth);
-    
+
     // Infinite loop: instantly snap from clone (index 3) to real first slide (index 0)
     if (Math.abs(scrollLeft - 3 * clientWidth) < 2) {
       containerRef.current.scrollTo({ left: 0, behavior: 'auto' });
       setActiveSlide(0);
       return;
     }
-    
+
     setActiveSlide(index);
   };
 
@@ -340,7 +340,7 @@ export default function LandingScreen() {
 
   const menu = (
     <div style={{ display: 'flex', gap: '8px' }}>
-      <button className="menu-dropdown-button" onClick={handleEditorClick}>Editor</button>
+      <button className="menu-dropdown-button" onClick={handleEditorClick} disabled={!isAuthenticated}>Editor</button>
       <button className="menu-dropdown-button" onClick={() => navigate('/catalog')}>Catalog</button>
       {/* <div className="menu-dropdown" onMouseLeave={() => setHelpMenuOpen(false)}>
         <button className="menu-dropdown-button" onPointerDown={() => setHelpMenuOpen(!helpMenuOpen)}>Help</button>
@@ -409,7 +409,7 @@ export default function LandingScreen() {
           </p>
           <div className="landing-actions">
             <Button variant="primary" onClick={() => navigate('/catalog')}>Start a booth <ArrowUpRight size={18} /></Button>
-            <button className="landing-text-action" onClick={handleEditorClick}>Design a template</button>
+            <button className="primary" onClick={handleEditorClick} disabled={!isAuthenticated}>Design a template</button>
           </div>
 
         </motion.div>
@@ -446,7 +446,13 @@ export default function LandingScreen() {
       menu={menu}
       actions={actions}
       statusLabel="Clear"
-      statusBar={<div>iBooth v{packageJson.version}</div>}
+      statusBar={
+        <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
+          <div>iBooth v{packageJson.version}</div>
+          <button onClick={() => navigate('/privacy')} style={{ background: 'transparent', border: 'none', color: 'inherit', padding: 0, textDecoration: 'underline', cursor: 'pointer', boxShadow: 'none', minHeight: 'auto', minWidth: 'auto' }}>Privacy Policy</button>
+          <button onClick={() => navigate('/terms')} style={{ background: 'transparent', border: 'none', color: 'inherit', padding: 0, textDecoration: 'underline', cursor: 'pointer', boxShadow: 'none', minHeight: 'auto', minWidth: 'auto' }}>Terms of Service</button>
+        </div>
+      }
       statusBarRight={<div>Part of <a href="https://arwndoprtma.space" target="_blank" rel="noopener noreferrer" style={{ color: 'inherit', textDecoration: 'none' }}>arwndoprtma.space</a></div>}
     >
       <div
@@ -582,7 +588,7 @@ export default function LandingScreen() {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginBottom: '1.5rem', alignItems: 'flex-start' }}>
                   <h2 style={{ fontSize: '1.5rem', margin: 0, fontWeight: 600 }}>Community Stats</h2>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
-                    <Button variant="primary" onClick={handleEditorClick} style={{ flexShrink: 0 }}>Become a Creator <Sparkles size={16} style={{ marginLeft: '6px' }} /></Button>
+                    <Button variant="primary" onClick={handleEditorClick} disabled={!isAuthenticated} style={{ flexShrink: 0 }}>Become a Creator <Sparkles size={16} style={{ marginLeft: '6px' }} /></Button>
                     <p style={{ margin: 0, color: 'var(--text)', fontSize: '0.95rem', maxWidth: '500px', lineHeight: '1.5' }}>
                       Join a growing community of creative minds! Start designing your first template today!
                     </p>
