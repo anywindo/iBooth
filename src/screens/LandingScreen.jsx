@@ -261,6 +261,14 @@ export default function LandingScreen() {
     navigate('/editor');
   };
 
+  const handleBecomeCreatorClick = () => {
+    if (!isAuthenticated) {
+      navigate('/auth?view=register');
+      return;
+    }
+    navigate('/editor');
+  };
+
   useEffect(() => {
     const audio = new Audio(shutterSound);
     audio.preload = 'auto';
@@ -588,7 +596,7 @@ export default function LandingScreen() {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginBottom: '1.5rem', alignItems: 'flex-start' }}>
                   <h2 style={{ fontSize: '1.5rem', margin: 0, fontWeight: 600 }}>Community Stats</h2>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
-                    <Button variant="primary" onClick={handleEditorClick} disabled={!isAuthenticated} style={{ flexShrink: 0 }}>Become a Creator <Sparkles size={16} style={{ marginLeft: '6px' }} /></Button>
+                    <Button variant="primary" onClick={handleBecomeCreatorClick} style={{ flexShrink: 0 }}>Become a Creator <Sparkles size={16} style={{ marginLeft: '6px' }} /></Button>
                     <p style={{ margin: 0, color: 'var(--text)', fontSize: '0.95rem', maxWidth: '500px', lineHeight: '1.5' }}>
                       Join a growing community of creative minds! Start designing your first template today!
                     </p>

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AppShell } from '../components/AppShell';
 import { Button } from '../components/Button.jsx';
@@ -6,7 +7,13 @@ import { useAuthStore } from '../store/authStore';
 import { useStore } from '../core/useStore';
 
 export default function AuthScreen({ navigate }) {
-  const [view, setView] = useState('login'); // 'login', 'register', 'forgot-password'
+  const location = useLocation();
+  const [view, setView] = useState(() => {
+    const searchParams = new URLSearchParams(location.search);
+    if (searchParams.get('view') === 'register') return 'register';
+    if (location.state?.view === 'register') return 'register';
+    return 'login';
+  });
   
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');

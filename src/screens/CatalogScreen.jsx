@@ -133,7 +133,7 @@ export default function CatalogScreen({ navigate }) {
 
   const menu = (
     <div style={{ display: 'flex', gap: '8px' }}>
-      <button className="menu-dropdown-button" onClick={handleEditorClick}>Editor</button>
+      <button className="menu-dropdown-button" onClick={handleEditorClick} disabled={!isAuthenticated}>Editor</button>
       <button className="menu-dropdown-button" onClick={() => navigate('/catalog')}>Catalog</button>
       {/* <div className="menu-dropdown" onMouseLeave={() => setHelpMenuOpen(false)}>
         <button className="menu-dropdown-button" onPointerDown={() => setHelpMenuOpen(!helpMenuOpen)}>Help</button>
@@ -324,7 +324,7 @@ export default function CatalogScreen({ navigate }) {
       onBack={() => navigate('/')}
       statusLabel={loading ? 'Loading' : 'Clear'}
       menu={menu}
-      actions={isAuthenticated && <Button variant="primary" onClick={() => navigate('/editor')}>New Template</Button>}
+      actions={<Button variant="primary" onClick={() => navigate('/editor')} disabled={!isAuthenticated}>New Template</Button>}
       statusBar={<div>iBooth v{packageJson.version}</div>}
       statusBarRight={<div>Part of <a href="https://arwndoprtma.space" target="_blank" rel="noopener noreferrer" style={{ color: 'inherit', textDecoration: 'none' }}>arwndoprtma.space</a></div>}
     >
@@ -582,7 +582,7 @@ export default function CatalogScreen({ navigate }) {
                 <div className="catalog-state catalog-empty-state">
                   <ImageIcon size={30} />
                   <span>No templates yet. Create your first layout in the editor.</span>
-                  <Button variant="primary" onClick={handleEditorClick}>Open Editor</Button>
+                  <Button variant="primary" onClick={handleEditorClick} disabled={!isAuthenticated}>Open Editor</Button>
                 </div>
               )}
 
