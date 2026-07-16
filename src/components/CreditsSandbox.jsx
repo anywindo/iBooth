@@ -403,16 +403,6 @@ export function CreditsSandbox({ templates = [] }) {
         boxSizing: 'border-box'
       }}
     >
-      {/* Decorative Radial Grid / Nebula Backdrop */}
-      <div style={{
-        position: 'absolute',
-        top: 0, left: 0, right: 0, bottom: 0,
-        backgroundImage: 'radial-gradient(currentColor 1px, transparent 1px)',
-        color: 'var(--text)',
-        backgroundSize: '24px 24px',
-        opacity: 0.15,
-        pointerEvents: 'none'
-      }} />
 
       {/* Ambient glow removed */}
 

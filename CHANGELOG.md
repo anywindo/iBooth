@@ -18,6 +18,8 @@
 - Replaced all synchronous, blocking browser `confirm` and `alert` prompts with the new custom Dialog component and toast system.
 - Restored the dark/light mode toggle in the Booth Screen header.
 - Added more layout theme options (including Graduation, Movie, Anniversary, Retro, etc.) in the Editor and synced them with the Gemini AI metadata generation.
+- Implemented a seamless infinite scroll loop on the landing page carousel for a smoother continuous viewing experience.
+- Refined the Contributors Sandbox with a fully responsive flat aesthetic and seamless light/dark mode theming.
 
 ## [0.0.1-alpha] - 2026-07-15 - Initial Project Release
 

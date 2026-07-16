@@ -645,7 +645,10 @@ export default function LandingScreen() {
             gridTemplateColumns: '1fr 1fr',
             gap: '4rem',
             textAlign: 'left',
-            overflow: 'hidden'
+            overflow: 'hidden',
+            backgroundColor: 'var(--bg)',
+            backgroundImage: 'radial-gradient(circle, rgba(150, 150, 150, 0.25) 2px, transparent 2px)',
+            backgroundSize: '32px 32px'
           }}>
             <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
               <h2 style={{ fontSize: '1.5rem', marginBottom: '1.5rem', fontWeight: 600, flexShrink: 0 }}>Latest Updates</h2>
