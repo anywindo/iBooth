@@ -14,6 +14,7 @@ import { useAuthStore } from '../store/authStore.js';
 import packageJson from '../../package.json';
 import changelogText from '../../CHANGELOG.md?raw';
 import { InfiniteSlider } from '../../components/motion-primitives/infinite-slider';
+import { CreditsSandbox } from '../components/CreditsSandbox.jsx';
 
 export function InfiniteSliderVertical() {
   const imgStyle = {
@@ -167,6 +168,14 @@ export default function LandingScreen() {
     if (!containerRef.current) return;
     const { scrollLeft, clientWidth } = containerRef.current;
     const index = Math.round(scrollLeft / clientWidth);
+    
+    // Infinite loop: instantly snap from clone (index 3) to real first slide (index 0)
+    if (Math.abs(scrollLeft - 3 * clientWidth) < 2) {
+      containerRef.current.scrollTo({ left: 0, behavior: 'auto' });
+      setActiveSlide(0);
+      return;
+    }
+    
     setActiveSlide(index);
   };
 
@@ -174,6 +183,7 @@ export default function LandingScreen() {
   const [showAboutModal, setShowAboutModal] = useState(false);
   const [headlineSequence, setHeadlineSequence] = useState(0);
   const [stats, setStats] = useState({ users: 0, templates: 0 });
+  const [templatesList, setTemplatesList] = useState([]);
   const shutterAudioRef = useRef(null);
   const showToast = useStore((store) => store.showToast);
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
@@ -208,6 +218,7 @@ export default function LandingScreen() {
         if (!active) return;
         if (res.success && res.data && res.data.length > 0) {
           const templates = res.data;
+          setTemplatesList(templates);
           const uniqueUsers = new Set(templates.map((t) => t.owner_id || 'local-user')).size;
           setStats({
             users: uniqueUsers,
@@ -216,6 +227,7 @@ export default function LandingScreen() {
         } else {
           // Fallback to local storage if empty
           const localTemplates = JSON.parse(localStorage.getItem('templates') || '[]');
+          setTemplatesList(localTemplates);
           const uniqueUsers = new Set(localTemplates.map((t) => t.owner_id || 'local-user')).size;
           setStats({
             users: uniqueUsers,
@@ -227,6 +239,7 @@ export default function LandingScreen() {
         if (!active) return;
         // Fallback
         const localTemplates = JSON.parse(localStorage.getItem('templates') || '[]');
+        setTemplatesList(localTemplates);
         const uniqueUsers = new Set(localTemplates.map((t) => t.owner_id || 'local-user')).size;
         setStats({
           users: uniqueUsers,
@@ -265,7 +278,7 @@ export default function LandingScreen() {
     const timer = setTimeout(() => {
       if (!containerRef.current) return;
       const { clientWidth } = containerRef.current;
-      const nextIndex = (activeSlide + 1) % 3;
+      const nextIndex = (activeSlide + 1) % 4; // Use 4 to reach the clone
       containerRef.current.scrollTo({
         left: nextIndex * clientWidth,
         behavior: 'smooth'
@@ -348,6 +361,85 @@ export default function LandingScreen() {
     </>
   );
 
+  const renderHeroPanel = (isClone = false) => (
+    <motion.section
+      key={isClone ? "hero-clone" : "hero-main"}
+      className="workspace landing-workspace"
+      style={{
+        flex: '0 0 100%',
+        scrollSnapAlign: 'start',
+        height: '100%',
+        boxSizing: 'border-box'
+      }}
+      exit={{ opacity: 0, y: -10 }}
+      transition={{ duration: 0.2 }}
+    >
+      <motion.div style={{ x: isClone ? 0 : copyParallax, zIndex: 1 }}>
+        <motion.div
+          className="landing-copy"
+          initial={isClone ? { opacity: 1, x: 0 } : { opacity: 0, x: -28 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.55, ease: "easeOut" }}
+        >
+
+          <h1
+            key={headlineSequence}
+            className={`hero-title${headlineSequence ? ' sequence-active' : ''}`}
+            onClick={() => setHeadlineSequence((sequence) => sequence + 1)}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                setHeadlineSequence((sequence) => sequence + 1);
+              }
+            }}
+            role="button"
+            tabIndex={0}
+          >
+            <span className="hero-word hero-word-make" aria-label="Make">
+              {'Make'.split('').map((letter, index) => (
+                <span key={letter + index} aria-hidden="true" style={{ '--letter-index': index }}>{letter}</span>
+              ))}
+            </span>{' '}
+            <span className="hero-word hero-word-the">the</span><br />
+            <span className="hero-word hero-word-moment">moment.</span><br />
+            <span className="landing-title-accent hero-word hero-word-proof hover-capture" onMouseEnter={playShutterHover}>Keep the proof.</span>
+          </h1>
+          <p>
+            A playful photo booth studio for people who want their memories to look as good as they felt.
+          </p>
+          <div className="landing-actions">
+            <Button variant="primary" onClick={() => navigate('/catalog')}>Start a booth <ArrowUpRight size={18} /></Button>
+            <button className="landing-text-action" onClick={handleEditorClick}>Design a template</button>
+          </div>
+
+        </motion.div>
+      </motion.div>
+
+      <motion.div style={{ x: isClone ? 0 : showcaseParallax, zIndex: 2 }}>
+        <motion.div
+          className="landing-showcase"
+          initial={isClone ? { opacity: 1, x: 0 } : { opacity: 0, x: 34 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.65, ease: "easeOut", delay: 0.08 }}
+          drag={!isClone}
+          dragMomentum={false}
+          whileDrag={!isClone ? { scale: 1.015, cursor: 'grabbing' } : undefined}
+        >
+          <div className="landing-booth-window">
+            <div className="landing-window-titlebar">
+              <div className="landing-window-controls" aria-hidden="true"><i /><i /><i /></div>
+              <span><Camera size={14} /> iBooth Camera</span>
+              <div />
+            </div>
+            <div className="landing-camera-view">
+              <img src={exampleImage} alt="Friends enjoying an iBooth session" draggable="false" />
+            </div>
+          </div>
+        </motion.div>
+      </motion.div>
+    </motion.section>
+  );
+
   return (
     <AppShell
       title="iBooth"
@@ -377,81 +469,7 @@ export default function LandingScreen() {
             scrollbarWidth: 'none',
             msOverflowStyle: 'none'
           }}>
-          <motion.section
-            className="workspace landing-workspace"
-            style={{
-              flex: '0 0 100%',
-              scrollSnapAlign: 'start',
-              height: '100%',
-              boxSizing: 'border-box'
-            }}
-            exit={{ opacity: 0, y: -10 }}
-            transition={{ duration: 0.2 }}
-          >
-            <motion.div style={{ x: copyParallax, zIndex: 1 }}>
-              <motion.div
-                className="landing-copy"
-                initial={{ opacity: 0, x: -28 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.55, ease: "easeOut" }}
-              >
-
-                <h1
-                  key={headlineSequence}
-                  className={`hero-title${headlineSequence ? ' sequence-active' : ''}`}
-                  onClick={() => setHeadlineSequence((sequence) => sequence + 1)}
-                  onKeyDown={(event) => {
-                    if (event.key === 'Enter' || event.key === ' ') {
-                      event.preventDefault();
-                      setHeadlineSequence((sequence) => sequence + 1);
-                    }
-                  }}
-                  role="button"
-                  tabIndex={0}
-                >
-                  <span className="hero-word hero-word-make" aria-label="Make">
-                    {'Make'.split('').map((letter, index) => (
-                      <span key={letter + index} aria-hidden="true" style={{ '--letter-index': index }}>{letter}</span>
-                    ))}
-                  </span>{' '}
-                  <span className="hero-word hero-word-the">the</span><br />
-                  <span className="hero-word hero-word-moment">moment.</span><br />
-                  <span className="landing-title-accent hero-word hero-word-proof hover-capture" onMouseEnter={playShutterHover}>Keep the proof.</span>
-                </h1>
-                <p>
-                  A playful photo booth studio for people who want their memories to look as good as they felt.
-                </p>
-                <div className="landing-actions">
-                  <Button variant="primary" onClick={() => navigate('/catalog')}>Start a booth <ArrowUpRight size={18} /></Button>
-                  <button className="landing-text-action" onClick={handleEditorClick}>Design a template</button>
-                </div>
-
-              </motion.div>
-            </motion.div>
-
-            <motion.div style={{ x: showcaseParallax, zIndex: 2 }}>
-              <motion.div
-                className="landing-showcase"
-                initial={{ opacity: 0, x: 34 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.65, ease: "easeOut", delay: 0.08 }}
-                drag
-                dragMomentum={false}
-                whileDrag={{ scale: 1.015, cursor: 'grabbing' }}
-              >
-                <div className="landing-booth-window">
-                  <div className="landing-window-titlebar">
-                    <div className="landing-window-controls" aria-hidden="true"><i /><i /><i /></div>
-                    <span><Camera size={14} /> iBooth Camera</span>
-                    <div />
-                  </div>
-                  <div className="landing-camera-view">
-                    <img src={exampleImage} alt="Friends enjoying an iBooth session" draggable="false" />
-                  </div>
-                </div>
-              </motion.div>
-            </motion.div>
-          </motion.section>
+          {renderHeroPanel(false)}
 
           {/* Panel 2: How it works & Updates & Promotion */}
           <section className="landing-details" style={{
@@ -663,32 +681,17 @@ export default function LandingScreen() {
                 })}
               </div>
             </div>
-            <div style={{
-              display: 'flex',
-              flexDirection: 'column',
-              justifyContent: 'center',
-              alignItems: 'center',
-              background: 'var(--code-bg)',
-              borderRadius: '12px',
-              border: '1px solid var(--border)',
-              height: '100%',
-              minHeight: '400px',
-              position: 'relative',
-              overflow: 'hidden'
-            }}>
-              <motion.div
-                initial={{ opacity: 0, scale: 0.95 }}
-                whileInView={{ opacity: 1, scale: 1 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.5 }}
-                style={{ textAlign: 'center', color: 'var(--text)' }}
-              >
-                <div style={{ fontSize: '3rem', marginBottom: '1rem', color: 'var(--accent)' }}>✨</div>
-                <h3 style={{ fontSize: '1.2rem', marginBottom: '0.5rem', color: 'var(--text-h)' }}>More coming soon</h3>
-                <p style={{ opacity: 0.7, maxWidth: '250px', margin: '0 auto' }}>We're always working on new features. Stay tuned!</p>
-              </motion.div>
+            <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
+              <h2 style={{ fontSize: '1.5rem', marginBottom: '1.5rem', fontWeight: 600, flexShrink: 0 }}>Contributors</h2>
+              <div style={{ flex: 1, position: 'relative', minHeight: 0 }}>
+                <CreditsSandbox templates={templatesList} />
+              </div>
             </div>
+            {/* <h2 style={{ fontSize: '1.5rem', marginBottom: '1.5rem', fontWeight: 600, flexShrink: 0 }}>Latest Updates</h2> */}
           </section>
+
+          {/* Invisible clone of the first panel for seamless looping */}
+          {renderHeroPanel(true)}
         </main>
 
         {/* Slide Indicators */}
