@@ -1,6 +1,6 @@
 <div align="center">
-  <img src="https://raw.githubusercontent.com/anywindo/iBooth/refs/heads/main/public/logo.png" width="120" alt="iBooth Logo" />
-  <h1>iBooth</h1>
+  <img src="https://raw.githubusercontent.com/anywindo/iBooth/refs/heads/main/public/logo.png" width="256" alt="iBooth Logo" />
+  <!-- <h1>iBooth</h1> -->
   <p><b>A modern, open-source desktop photobooth software built for creators and events.</b></p>
   
   [![Made with React](https://img.shields.io/badge/React-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)](#)
