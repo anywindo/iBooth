@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="[https://raw.githubusercontent.com/anywindo/iBooth/refs/heads/main/public/logo.png" width="120" alt="iBooth Logo" />
+  <img src="https://raw.githubusercontent.com/anywindo/iBooth/refs/heads/main/public/logo.png" width="120" alt="iBooth Logo" />
   <h1>iBooth</h1>
   <p><b>A modern, open-source desktop photobooth software built for creators and events.</b></p>
   
