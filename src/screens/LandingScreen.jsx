@@ -15,6 +15,8 @@ import packageJson from '../../package.json';
 import changelogText from '../../CHANGELOG.md?raw';
 import { InfiniteSlider } from '../../components/motion-primitives/infinite-slider';
 import { CreditsSandbox } from '../components/CreditsSandbox.jsx';
+import { InteractiveDots } from '../components/InteractiveDots.jsx';
+
 
 export function InfiniteSliderVertical() {
   const imgStyle = {
@@ -666,6 +668,7 @@ export default function LandingScreen() {
 
           {/* Panel 3: Latest Updates */}
           <section className="landing-details" style={{
+            position: 'relative',
             flex: '0 0 100%',
             scrollSnapAlign: 'start',
             height: '100%',
@@ -676,11 +679,10 @@ export default function LandingScreen() {
             gap: '4rem',
             textAlign: 'left',
             overflow: 'hidden',
-            backgroundColor: 'var(--bg)',
-            backgroundImage: 'radial-gradient(circle, rgba(150, 150, 150, 0.25) 2px, transparent 2px)',
-            backgroundSize: '32px 32px'
+            backgroundColor: 'var(--bg)'
           }}>
-            <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
+            <InteractiveDots />
+            <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden', position: 'relative', zIndex: 1 }}>
               <h2 style={{ fontSize: '1.5rem', marginBottom: '1.5rem', fontWeight: 600, flexShrink: 0 }}>Latest Updates</h2>
               <p style={{ color: 'var(--text)', fontSize: '0.95rem', marginBottom: '1.5rem' }}>Contribute to this project on <a href="https://github.com/anywindo/iBooth" style={{ color: 'var(--accent)', fontWeight: 'bold' }}>GitHub</a></p>
               <div style={{ overflowY: 'auto', flex: 1, paddingRight: '1rem', paddingBottom: '2rem' }} className="custom-scrollbar">
@@ -715,7 +717,7 @@ export default function LandingScreen() {
               </div>
             </div>
             {isOnline && (
-              <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden', position: 'relative', zIndex: 1 }}>
                 <h2 style={{ fontSize: '1.5rem', marginBottom: '1.5rem', fontWeight: 600, flexShrink: 0 }}>Contributors</h2>
                 <div style={{ flex: 1, position: 'relative', minHeight: 0 }}>
                   <CreditsSandbox templates={templatesList} />
