@@ -6,6 +6,8 @@ directories:
 
 mac:
   category: public.app-category.photography
+  entitlements: build/entitlements.mac.plist
+  entitlementsInherit: build/entitlements.mac.inherit.plist
   target:
     - target: dmg
       arch:
@@ -22,7 +24,10 @@ mac:
 
 win:
   target:
-    - nsis
+    - target: nsis
+      arch:
+        - x64
+        - arm64
   artifactName: '${productName}-${version}-${os}-${arch}.${ext}'
 
 nsis:

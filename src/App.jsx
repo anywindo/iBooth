@@ -11,6 +11,7 @@ import ResetPasswordScreen from './screens/ResetPasswordScreen.jsx';
 import AuthScreen from './screens/AuthScreen.jsx';
 import PrivacyScreen from './screens/PrivacyScreen.jsx';
 import TermsScreen from './screens/TermsScreen.jsx';
+import DownloadScreen from './screens/DownloadScreen.jsx';
 import Toast from './components/Toast.jsx';
 import { CookieConsent } from './components/CookieConsent.jsx';
 import { useAuthStore } from './store/authStore';
@@ -70,6 +71,7 @@ function AppContent() {
           } 
         />
         <Route path="/catalog" element={<CatalogScreen navigate={navigate} />} />
+        <Route path="/download" element={<DownloadScreen />} />
         <Route path="/booth" element={<BoothScreen navigate={navigate} />} />
         <Route path="/booth/:templateId" element={<BoothScreen navigate={navigate} />} />
         <Route path="/preview" element={<PreviewScreen navigate={navigate} />} />

@@ -12,6 +12,7 @@ import shutterSound from '../assets/SHUTTER.mp3';
 import { useStore } from '../core/useStore.js';
 import { useAuthStore } from '../store/authStore.js';
 import packageJson from '../../package.json';
+import { isElectron } from '../core/platform.js';
 import changelogText from '../../CHANGELOG.md?raw';
 import { InfiniteSlider } from '../../components/motion-primitives/infinite-slider';
 import { CreditsSandbox } from '../components/CreditsSandbox.jsx';
@@ -381,6 +382,11 @@ export default function LandingScreen() {
 
   const actions = (
     <>
+      {!isElectron() && (
+        <Button variant="ghost" onClick={() => navigate('/download')}>
+          Download App
+        </Button>
+      )}
       {/* <Button variant="warning" onClick={() => navigate('/editor')}>Start</Button> */}
     </>
   );
