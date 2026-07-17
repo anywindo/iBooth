@@ -433,7 +433,7 @@ export default function BoothScreen({ navigate }) {
   );
 
   return (
-    <AppShell title="iBooth" subtitle={template.name} actions={actions}>
+    <AppShell title="iBooth" actions={actions}>
       <main className="booth-layout">
         <section className="booth-main">
           <div className="camera-pane">

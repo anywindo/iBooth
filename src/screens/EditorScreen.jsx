@@ -3,10 +3,12 @@ import { useLocation } from 'react-router-dom';
 import { useStore, normalizeTemplate, uid } from '../core/useStore.js';
 import { CANVAS_PRESETS, formatMm, getCanvasPreset } from '../core/constants.js';
 import { AppShell } from '../components/AppShell.jsx';
+import { AboutModal } from '../components/AboutModal.jsx';
 import { Button } from '../components/Button.jsx';
 import { analyzeFrameSlots } from '../core/frameSlotAi.js';
 import { motion } from 'framer-motion';
 import { useAuthStore } from '../store/authStore.js';
+import { isElectron, isMac } from '../core/platform.js';
 import { compressToTransparentWebp } from '../utils/compressor.js';
 
 const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
@@ -112,7 +114,7 @@ function CollapsibleSection({ title, note, noteClassName = "section-note", headi
 }
 
 export default function EditorScreen({ navigate }) {
-  const { user } = useAuthStore();
+  const { user, isAuthenticated } = useAuthStore();
   const location = useLocation();
   const returnTo = location.state?.returnTo || '/';
   const scrollerRef = useRef(null);
@@ -155,6 +157,38 @@ export default function EditorScreen({ navigate }) {
       resetTemplate();
     }
   }, [location.state?.isExplicitEdit, resetTemplate]);
+
+  useEffect(() => {
+    if (isElectron() && isMac() && window.electronAPI?.editor) {
+      window.electronAPI.editor.setMenu(true);
+
+      const removeListener = window.electronAPI.editor.onAction((action) => {
+        if (action === 'new-template') {
+          resetTemplate();
+          showToast('Started new template', 'success');
+        } else if (action === 'save-template') {
+          saveTemplateToBackend();
+        } else if (action === 'import-json') {
+          importRef.current?.click();
+        } else if (action === 'export-json') {
+          downloadJson(template, `${slug(template.name)}.json`);
+        } else if (action === 'upload-frame') {
+          frameRef.current?.click();
+        } else if (action === 'undo') {
+          undo();
+        } else if (action === 'redo') {
+          redo();
+        } else if (action === 'about') {
+          setShowAboutModal(true);
+        }
+      });
+
+      return () => {
+        removeListener();
+        window.electronAPI.editor.setMenu(false);
+      };
+    }
+  }, [resetTemplate, template, undo, redo, saveTemplateToBackend, showToast]);
 
   const selectedSlot = useMemo(
     () => template.slots.find((slot) => slot.id === selectedSlotId) || null,
@@ -202,14 +236,18 @@ export default function EditorScreen({ navigate }) {
     observer.observe(node);
 
     const handleKeyDown = (e) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
+        return; // don't intercept if typing in an input
+      }
+
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
         e.preventDefault();
         if (e.shiftKey) {
           redo();
         } else {
           undo();
         }
-      } else if ((e.ctrlKey || e.metaKey) && e.key === 'y') {
+      } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') {
         e.preventDefault();
         redo();
       }
@@ -234,21 +272,21 @@ export default function EditorScreen({ navigate }) {
     const handleWheel = (e) => {
       if (e.ctrlKey || e.metaKey) {
         e.preventDefault();
-        
+
         const rect = scroller.getBoundingClientRect();
         const mouseX = e.clientX - rect.left;
         const mouseY = e.clientY - rect.top;
-        
+
         const currentZoom = useStore.getState().zoom;
         const currentPan = useStore.getState().pan;
-        
+
         const zoomFactor = e.deltaY > 0 ? 0.94 : 1.06;
         const nextZoom = clamp(currentZoom * zoomFactor, 0.18, 2.25);
-        
+
         if (nextZoom !== currentZoom) {
           const nextPanX = currentPan.x + (mouseX - rect.width / 2 - currentPan.x) * (1 - nextZoom / currentZoom);
           const nextPanY = currentPan.y + (mouseY - rect.height / 2 - currentPan.y) * (1 - nextZoom / currentZoom);
-          
+
           setZoom(nextZoom);
           setPan({ x: nextPanX, y: nextPanY });
         }
@@ -262,7 +300,7 @@ export default function EditorScreen({ navigate }) {
         touchStartDist = Math.hypot(dx, dy);
         touchStartZoom = useStore.getState().zoom;
         touchStartPan = useStore.getState().pan;
-        
+
         const rect = scroller.getBoundingClientRect();
         touchStartMidpoint = {
           x: (e.touches[0].clientX + e.touches[1].clientX) / 2 - rect.left,
@@ -279,11 +317,11 @@ export default function EditorScreen({ navigate }) {
         const dist = Math.hypot(dx, dy);
         const scale = dist / touchStartDist;
         const nextZoom = clamp(touchStartZoom * scale, 0.18, 2.25);
-        
+
         const rect = scroller.getBoundingClientRect();
         const nextPanX = touchStartPan.x + (touchStartMidpoint.x - rect.width / 2 - touchStartPan.x) * (1 - nextZoom / touchStartZoom);
         const nextPanY = touchStartPan.y + (touchStartMidpoint.y - rect.height / 2 - touchStartPan.y) * (1 - nextZoom / touchStartZoom);
-        
+
         setZoom(nextZoom);
         setPan({ x: nextPanX, y: nextPanY });
       }
@@ -354,7 +392,7 @@ export default function EditorScreen({ navigate }) {
     ctxV.textBaseline = 'top';
 
     const stepSizePx = rulerStepPx * zoom;
-    
+
     // Draw Horizontal Ticks
     const startIdx = Math.floor(-stageLeft / stepSizePx);
     const endIdx = Math.ceil((w - stageLeft) / stepSizePx);
@@ -429,26 +467,30 @@ export default function EditorScreen({ navigate }) {
     showToast(`${result.message}${detail}`, result.mode === 'fallback' ? 'warning' : 'success');
   }
 
-  function updateTemplate(nextTemplate) {
-    commitTemplate();
+  function updateTemplate(nextTemplate, commit = true) {
+    if (commit) commitTemplate();
     setSaveStatus('unsaved');
     setTemplate(nextTemplate);
     setTimeout(saveTemplateQuietly, 0);
   }
 
-  function updateSlot(slotId, updates) {
+  function updateSlot(slotId, updates, commit = true) {
     const slots = template.slots.map((slot) => {
       if (slot.id !== slotId) return slot;
       const next = { ...slot, ...updates };
+      // Clamp x and y first, leaving at least minimum size (60) for width/height
+      next.x = clamp(Number(next.x) || 0, 0, template.width - 60);
+      next.y = clamp(Number(next.y) || 0, 0, template.height - 60);
+      
+      // Then clamp width and height using the constrained x and y
       next.width = clamp(Number(next.width) || 60, 60, template.width - next.x);
       next.height = clamp(Number(next.height) || 60, 60, template.height - next.y);
-      next.x = clamp(Number(next.x) || 0, 0, template.width - next.width);
-      next.y = clamp(Number(next.y) || 0, 0, template.height - next.height);
+      
       next.rotation = Number(next.rotation) || 0;
       next.radius = clamp(Number(next.radius) || 0, 0, 160);
       return next;
     });
-    updateTemplate({ ...template, slots });
+    updateTemplate({ ...template, slots }, commit);
   }
 
   function fitStage() {
@@ -538,11 +580,11 @@ export default function EditorScreen({ navigate }) {
       event.target.value = '';
       return;
     }
-    
+
     showToast('Compressing image...', 'info');
     const compressedBlob = await compressToTransparentWebp(file, 2);
     const frameImage = await readFileAsDataUrl(compressedBlob);
-    
+
     const frameSize = await readImageSize(frameImage);
     const preset = findBestPresetForFrame(frameSize);
     const nextTemplate = {
@@ -740,11 +782,13 @@ Instructions:
       setSelectedSlotId(slot.id);
       return;
     }
+    commitTemplate(); // Save state before drag starts
     const handle = event.target.dataset.handle;
-    const start = pointerToCanvas(event);
     const initial = { ...slot };
     const pointerId = event.pointerId;
     event.currentTarget.setPointerCapture(pointerId);
+    
+    const start = pointerToCanvas(event);
 
     const move = (moveEvent) => {
       const point = pointerToCanvas(moveEvent);
@@ -768,7 +812,7 @@ Instructions:
           updates.height = initial.height + initial.y - nextY;
         }
       }
-      updateSlot(slot.id, updates);
+      updateSlot(slot.id, updates, false); // Do not commit while dragging
     };
     const up = () => {
       window.removeEventListener('pointermove', move);
@@ -827,36 +871,43 @@ Instructions:
 
   const menu = (
     <div style={{ display: 'flex', gap: '8px' }}>
-      <div className="menu-dropdown" onMouseLeave={() => setMenuOpen(false)}>
-        <button className="menu-dropdown-button" onPointerDown={() => setMenuOpen(!menuOpen)}>File</button>
-        {menuOpen && (
-          <div className="menu-dropdown-content" onClick={() => setMenuOpen(false)}>
-            <button className="menu-dropdown-item" onClick={() => {
-              resetTemplate();
-              showToast('Started new template', 'success');
-            }}>New Template</button>
-            <div className="menu-divider" />
-            <button className="menu-dropdown-item" onClick={saveTemplateToBackend} style={{ color: '#10b981', fontWeight: 'bold' }}>Save Template</button>
-            <button className="menu-dropdown-item" onClick={() => importRef.current?.click()}>Import from JSON...</button>
-            <button className="menu-dropdown-item" onClick={() => downloadJson(template, `${slug(template.name)}.json`)}>Export to JSON...</button>
-            <div className="menu-divider" />
-            <button className="menu-dropdown-item" onClick={() => frameRef.current?.click()}>Upload Frame...</button>
+      <button className="menu-dropdown-button" onClick={() => navigate('/')}>Home</button>
+      <button className="menu-dropdown-button" onClick={() => navigate('/catalog')}>Catalog</button>
+      <button className="menu-dropdown-button" onClick={() => navigate('/editor')} disabled={!isAuthenticated}>Editor</button>
+      {!(isElectron() && isMac()) && (
+        <>
+          <div className="menu-dropdown" onMouseLeave={() => setMenuOpen(false)}>
+            <button className="menu-dropdown-button" onPointerDown={() => setMenuOpen(!menuOpen)}>File</button>
+            {menuOpen && (
+              <div className="menu-dropdown-content" onClick={() => setMenuOpen(false)}>
+                <button className="menu-dropdown-item" onClick={() => {
+                  resetTemplate();
+                  showToast('Started new template', 'success');
+                }}>New Template</button>
+                <div className="menu-divider" />
+                <button className="menu-dropdown-item" onClick={saveTemplateToBackend} style={{ color: '#10b981', fontWeight: 'bold' }}>Save Template</button>
+                <button className="menu-dropdown-item" onClick={() => importRef.current?.click()}>Import from JSON...</button>
+                <button className="menu-dropdown-item" onClick={() => downloadJson(template, `${slug(template.name)}.json`)}>Export to JSON...</button>
+                <div className="menu-divider" />
+                <button className="menu-dropdown-item" onClick={() => frameRef.current?.click()}>Upload Frame...</button>
+              </div>
+            )}
           </div>
-        )}
-      </div>
-      <div className="menu-dropdown" onMouseLeave={() => setEditMenuOpen(false)}>
-        <button className="menu-dropdown-button" onPointerDown={() => setEditMenuOpen(!editMenuOpen)}>Edit</button>
-        {editMenuOpen && (
-          <div className="menu-dropdown-content" onClick={() => setEditMenuOpen(false)}>
-            <button className="menu-dropdown-item" disabled={pastTemplates.length === 0} onClick={undo}>
-              Undo <span style={{ opacity: 0.5, float: 'right' }}>⌘Z</span>
-            </button>
-            <button className="menu-dropdown-item" disabled={futureTemplates.length === 0} onClick={redo}>
-              Redo <span style={{ opacity: 0.5, float: 'right' }}>⇧⌘Z</span>
-            </button>
+          <div className="menu-dropdown" onMouseLeave={() => setEditMenuOpen(false)}>
+            <button className="menu-dropdown-button" onPointerDown={() => setEditMenuOpen(!editMenuOpen)}>Edit</button>
+            {editMenuOpen && (
+              <div className="menu-dropdown-content" onClick={() => setEditMenuOpen(false)}>
+                <button className="menu-dropdown-item" disabled={pastTemplates.length === 0} onClick={undo}>
+                  Undo <span style={{ opacity: 0.5, float: 'right' }}>⌘Z</span>
+                </button>
+                <button className="menu-dropdown-item" disabled={futureTemplates.length === 0} onClick={redo}>
+                  Redo <span style={{ opacity: 0.5, float: 'right' }}>⇧⌘Z</span>
+                </button>
+              </div>
+            )}
           </div>
-        )}
-      </div>
+        </>
+      )}
       {/* <div className="menu-dropdown" onMouseLeave={() => setHelpMenuOpen(false)}>
         <button className="menu-dropdown-button" onPointerDown={() => setHelpMenuOpen(!helpMenuOpen)}>Help</button>
         {helpMenuOpen && (
@@ -904,6 +955,10 @@ Instructions:
     >
       <main className="editor-layout">
         <aside className="panel">
+          <div style={{ padding: '24px 20px 16px 20px', borderBottom: '1px solid var(--border)' }}>
+            <h1 style={{ fontSize: '20px', fontWeight: 800, margin: 0, color: 'var(--text-h)', lineHeight: '1.2' }}>Template Editor</h1>
+            <p style={{ fontSize: '12px', color: 'var(--text)', margin: '8px 0 0 0', lineHeight: '1.4' }}>Edit the template for your photo booth session.</p>
+          </div>
           <CollapsibleSection title="Template" note="Frame and layout">
             <label>Name<input value={template.name || ''} onChange={(event) => updateTemplate({ ...template, name: event.target.value })} /></label>
             <label>Description
@@ -1178,28 +1233,7 @@ Instructions:
         </div>
       )}
 
-      {showAboutModal && (
-        <div
-          onClick={() => setShowAboutModal(false)}
-          style={{
-            position: 'fixed',
-            top: 0, left: 0, right: 0, bottom: 0,
-            backgroundColor: 'rgba(0,0,0,0.6)',
-            zIndex: 9999,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            backdropFilter: 'blur(3px)'
-          }}
-        >
-          <img
-            onClick={(e) => e.stopPropagation()}
-            src={aboutImage}
-            alt="About iBooth"
-            style={{ width: '800px', maxWidth: '90vw', height: 'auto', display: 'block', objectFit: 'contain' }}
-          />
-        </div>
-      )}
+      {showAboutModal && <AboutModal onClose={() => setShowAboutModal(false)} />}
     </AppShell>
   );
 }

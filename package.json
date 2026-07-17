@@ -2,14 +2,23 @@
   "name": "iBooth",
   "version": "0.0.1-beta",
   "private": true,
+  "main": "./out/main/index.js",
   "scripts": {
     "start": "vite",
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "electron:dev": "electron-vite dev",
+    "electron:build": "electron-vite build",
+    "electron:preview": "electron-vite preview",
+    "electron:dist": "electron-vite build && electron-builder --mac --win",
+    "electron:dist:mac": "electron-vite build && electron-builder --mac",
+    "electron:dist:win": "electron-vite build && electron-builder --win"
   },
   "dependencies": {
+    "@marsidev/react-turnstile": "^1.5.3",
     "@supabase/supabase-js": "^2.110.0",
+    "electron-updater": "^6.8.9",
     "framer-motion": "^12.42.2",
     "lucide-react": "^1.23.0",
     "motion": "^12.42.2",
@@ -21,11 +30,16 @@
     "react-router-dom": "^7.18.1",
     "react-use-measure": "^2.1.7",
     "recharts": "^3.9.2",
+    "sharp": "^0.35.3",
     "zustand": "^5.0.14"
   },
   "devDependencies": {
+    "@electron-toolkit/utils": "^4.0.0",
     "@vitejs/plugin-react": "^6.0.3",
     "autoprefixer": "^10.5.2",
+    "electron": "^36.3.1",
+    "electron-builder": "^26.0.12",
+    "electron-vite": "^6.0.0-beta.1",
     "postcss": "^8.5.16",
     "tailwindcss": "^3.4.19",
     "vite": "^8.1.3"

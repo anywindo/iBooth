@@ -134,7 +134,7 @@ export async function drawTemplateToCanvas(template, canvas, captures = [], acti
   }
 
   await drawFrameOverlay(template, context);
-  drawTemplateTitle(template, context);
+  // drawTemplateTitle(template, context);
 
   if (activeIndex >= 0 && template.slots[activeIndex]) {
     drawActiveSlot(context, template.slots[activeIndex]);

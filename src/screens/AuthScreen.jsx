@@ -5,6 +5,7 @@ import { AppShell } from '../components/AppShell';
 import { Button } from '../components/Button.jsx';
 import { useAuthStore } from '../store/authStore';
 import { useStore } from '../core/useStore';
+import { Turnstile } from '@marsidev/react-turnstile';
 
 export default function AuthScreen({ navigate }) {
   const location = useLocation();
@@ -23,7 +24,10 @@ export default function AuthScreen({ navigate }) {
   const [privacyAccepted, setPrivacyAccepted] = useState(false);
   
   const [isLoading, setIsLoading] = useState(false);
+  const [captchaToken, setCaptchaToken] = useState(null);
   const showToast = useStore((store) => store.showToast);
+  
+  const siteKey = import.meta.env.VITE_TURNSTILE_SITE_KEY;
   
   const { login, register, forgotPassword } = useAuthStore();
 
@@ -32,7 +36,12 @@ export default function AuthScreen({ navigate }) {
     setIsLoading(true);
 
     if (view === 'login') {
-      const result = await login({ email, password });
+      if (siteKey && !captchaToken) {
+        showToast('Please wait for Turnstile to verify you.', 'error');
+        setIsLoading(false);
+        return;
+      }
+      const result = await login({ email, password, captchaToken });
       if (result.success) {
         showToast('Logged in successfully!', 'success');
         navigate('/profile', { replace: true });
@@ -60,10 +69,16 @@ export default function AuthScreen({ navigate }) {
         return;
       }
       
-      const result = await register({ name, email, password, password_confirmation: passwordConfirmation });
+      if (siteKey && !captchaToken) {
+        showToast('Please wait for Turnstile to verify you.', 'error');
+        setIsLoading(false);
+        return;
+      }
+      
+      const result = await register({ name, email, password, password_confirmation: passwordConfirmation, captchaToken });
       if (result.success) {
         if (result.requiresEmailConfirmation) {
-          showToast('Please check your email to confirm your account before logging in.', 'success');
+          showToast('Please check your email (including spam folder) to confirm your account before logging in.', 'success');
           setView('login');
         } else {
           showToast('Account created successfully!', 'success');
@@ -206,6 +221,9 @@ export default function AuthScreen({ navigate }) {
                   <input type="checkbox" checked={privacyAccepted} onChange={(e) => setPrivacyAccepted(e.target.checked)} required style={{ cursor: 'pointer', width: 'auto', height: 'auto', margin: 0, padding: 0 }} />
                   <span>I have read and agree to the <a href="/privacy" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent)', textDecoration: 'underline' }}>Privacy Policy</a></span>
                 </label>
+                <div style={{ marginTop: '0.5rem', fontSize: '13px', color: 'rgba(255,255,255,0.7)', fontStyle: 'italic' }}>
+                  Note: The confirmation email may end up in your spam or junk folder.
+                </div>
               </div>
             </>
           )}
@@ -261,6 +279,18 @@ export default function AuthScreen({ navigate }) {
               <AnimatePresence mode="wait">
                 {renderForm()}
               </AnimatePresence>
+              
+              {(view === 'login' || view === 'register') && siteKey && (
+                <div style={{ display: 'flex', justifyContent: 'center', marginTop: '1rem' }}>
+                  <Turnstile 
+                    siteKey={siteKey}
+                    onSuccess={(token) => setCaptchaToken(token)}
+                    options={{
+                      theme: 'dark',
+                    }}
+                  />
+                </div>
+              )}
               
               <div style={{ marginTop: '2rem' }}>
                 <Button type="submit" style={{ width: '100%' }} disabled={isLoading}>

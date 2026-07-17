@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState, useRef } from 'react';
-import { Image as ImageIcon, Search, Trash2, X, ZoomIn, ZoomOut, RotateCcw } from 'lucide-react';
+import { Image as ImageIcon, Search, Trash2, X, ZoomIn, ZoomOut, RotateCcw, CloudOff, CloudUpload } from 'lucide-react';
 import { motion, AnimatePresence, useMotionValue, useSpring, useTransform } from 'framer-motion';
 import { useStore, normalizeTemplate } from '../core/useStore.js';
 import { AppShell } from '../components/AppShell.jsx';
@@ -7,8 +7,9 @@ import { Button } from '../components/Button.jsx';
 import Dialog from '../components/Dialog.jsx';
 import { useAuthStore } from '../store/authStore';
 import packageJson from '../../package.json';
-import aboutImage from '../assets/about.png';
+import { AboutModal } from '../components/AboutModal.jsx';
 import { TemplateDrawer, formatTemplateDate } from '../components/TemplateDrawer.jsx';
+import { isElectron } from '../core/platform.js';
 
 function CollapsibleSection({ title, note, headingClassName = 'section-heading', children, defaultCollapsed = false }) {
   const [collapsed, setCollapsed] = useState(defaultCollapsed);
@@ -99,15 +100,27 @@ export default function CatalogScreen({ navigate }) {
   const [sortOrder, setSortOrder] = useState('newest');
   const [filterFormat, setFilterFormat] = useState('all');
   const [filterSlots, setFilterSlots] = useState('all');
-  const [activeTab, setActiveTab] = useState('all');
+  const [activeTab, setActiveTab] = useState(isElectron() ? 'local' : 'all');
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(8);
   const [selectedTemplate, setSelectedTemplate] = useState(null);
   const [templateToDelete, setTemplateToDelete] = useState(null);
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
 
   useEffect(() => {
     setCurrentPage(1);
   }, [searchQuery, filterFormat, filterSlots, activeTab]);
+
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
 
   const { user, isAuthenticated } = useAuthStore();
 
@@ -117,13 +130,15 @@ export default function CatalogScreen({ navigate }) {
   const showToast = useStore((store) => store.showToast);
 
   const fetchTemplatesMethod = useStore((store) => store.fetchTemplates);
+  const fetchCloudTemplates = useStore((store) => store.fetchCloudTemplates);
+  const uploadTemplateToCloud = useStore((store) => store.uploadTemplateToCloud);
 
   const [helpMenuOpen, setHelpMenuOpen] = useState(false);
   const [showAboutModal, setShowAboutModal] = useState(false);
 
 
   const handleEditorClick = () => {
-    if (!isAuthenticated) {
+    if (!isAuthenticated && !isElectron()) {
       showToast('You will need to login to access the editor', 'warning');
       return;
     }
@@ -131,10 +146,29 @@ export default function CatalogScreen({ navigate }) {
     navigate('/editor', { state: { returnTo: '/catalog' } });
   };
 
+  const handleUpload = async (template) => {
+    if (!template) return;
+    try {
+      showToast('Uploading template to cloud...', 'info');
+      const res = await uploadTemplateToCloud(template);
+      if (res.success) {
+        showToast('Template uploaded successfully!', 'success');
+        const refreshResponse = await fetchTemplatesMethod(user?.id);
+        if (refreshResponse.success) setTemplates(refreshResponse.data);
+        setSelectedTemplate(null);
+      } else {
+        showToast(res.error, 'error');
+      }
+    } catch (e) {
+      showToast(e.message, 'error');
+    }
+  };
+
   const menu = (
     <div style={{ display: 'flex', gap: '8px' }}>
-      <button className="menu-dropdown-button" onClick={handleEditorClick} disabled={!isAuthenticated}>Editor</button>
+      <button className="menu-dropdown-button" onClick={() => navigate('/')}>Home</button>
       <button className="menu-dropdown-button" onClick={() => navigate('/catalog')}>Catalog</button>
+      <button className="menu-dropdown-button" onClick={handleEditorClick} disabled={!isAuthenticated}>Editor</button>
       {/* <div className="menu-dropdown" onMouseLeave={() => setHelpMenuOpen(false)}>
         <button className="menu-dropdown-button" onPointerDown={() => setHelpMenuOpen(!helpMenuOpen)}>Help</button>
         {helpMenuOpen && (
@@ -151,7 +185,24 @@ export default function CatalogScreen({ navigate }) {
   useEffect(() => {
     async function loadData() {
       try {
-        const res = await fetchTemplatesMethod(); // Fetch all templates without userId
+        setLoading(true);
+        setError(null);
+        let res;
+        if (isElectron()) {
+          if (activeTab === 'cloud') {
+            if (!isOnline) {
+              setTemplates([]);
+              setLoading(false);
+              return;
+            }
+            res = await fetchCloudTemplates();
+          } else {
+            res = await fetchTemplatesMethod();
+          }
+        } else {
+          res = await fetchTemplatesMethod();
+        }
+
         if (!res.success) throw new Error(res.error);
         setTemplates(res.data);
       } catch (err) {
@@ -161,7 +212,7 @@ export default function CatalogScreen({ navigate }) {
       }
     }
     loadData();
-  }, [user, fetchTemplatesMethod]);
+  }, [user, fetchTemplatesMethod, fetchCloudTemplates, activeTab, isOnline]);
 
   const processedTemplates = useMemo(() => {
     return templates.map(t => {
@@ -325,13 +376,13 @@ export default function CatalogScreen({ navigate }) {
       statusLabel={loading ? 'Loading' : 'Clear'}
       menu={menu}
       actions={<Button variant="primary" onClick={() => navigate('/editor')} disabled={!isAuthenticated}>New Template</Button>}
-      statusBar={<div>iBooth v{packageJson.version}</div>}
+      statusBar={<button onClick={() => setShowAboutModal(true)} style={{ background: 'transparent', border: 'none', color: 'inherit', padding: 0, cursor: 'pointer', boxShadow: 'none', minHeight: 'auto', minWidth: 'auto', fontFamily: 'inherit', fontSize: 'inherit' }}>iBooth v{packageJson.version}</button>}
       statusBarRight={<div>Part of <a href="https://arwndoprtma.space" target="_blank" rel="noopener noreferrer" style={{ color: 'inherit', textDecoration: 'none' }}>arwndoprtma.space</a></div>}
     >
       <main className="editor-layout" style={{ gridTemplateColumns: '300px minmax(640px, 1fr)' }}>
         <aside className="panel" style={{ overflowY: 'auto' }}>
           <div style={{ padding: '24px 20px 16px 20px', borderBottom: '1px solid var(--border)' }}>
-            {/* <h1 style={{ fontSize: '20px', fontWeight: 800, margin: 0, color: 'var(--text-h)', lineHeight: '1.2' }}>Template Catalog</h1> */}
+            <h1 style={{ fontSize: '20px', fontWeight: 800, margin: 0, color: 'var(--text-h)', lineHeight: '1.2' }}>Template Catalog</h1>
             <p style={{ fontSize: '12px', color: 'var(--text)', margin: '8px 0 0 0', lineHeight: '1.4' }}>Pick a strip to start a photo booth session.</p>
           </div>
           <CollapsibleSection title="FILTERS" note="Find templates">
@@ -425,10 +476,13 @@ export default function CatalogScreen({ navigate }) {
           {/* Tabbed Navigation */}
           <div className="catalog-tab-bar" style={{ display: 'flex', justifyContent: 'space-between', gap: '8px', padding: '8px 40px', borderBottom: '1px solid var(--border)', alignItems: 'center', background: 'var(--panel)', flex: '0 0 auto' }}>
             <div style={{ display: 'flex', gap: '8px' }}>
-              {[
+              {(isElectron() ? [
+                { id: 'local', label: 'Local Templates', count: activeTab === 'local' ? templates.length : null },
+                { id: 'cloud', label: 'Cloud Templates', count: activeTab === 'cloud' ? templates.length : null }
+              ] : [
                 { id: 'all', label: 'All Templates', count: templates.length },
                 { id: 'mine', label: 'My Templates', authenticatedOnly: true, count: templates.filter(t => t.owner_id === user?.id).length }
-              ].map(tab => {
+              ]).map(tab => {
                 if (tab.authenticatedOnly && !isAuthenticated) return null;
                 const active = activeTab === tab.id;
                 return (
@@ -578,11 +632,17 @@ export default function CatalogScreen({ navigate }) {
               {loading && <div className="catalog-state">Loading templates...</div>}
               {error && <div className="catalog-state error">Error: {error}</div>}
 
-              {!loading && !error && templates.length === 0 && (
+              {!loading && !error && templates.length === 0 && activeTab === 'cloud' && !isOnline && isElectron() && (
+                <div className="catalog-state catalog-empty-state">
+                  <CloudOff size={30} />
+                  <span>You are offline. Cloud templates are not available.</span>
+                </div>
+              )}
+              {!loading && !error && templates.length === 0 && !(activeTab === 'cloud' && !isOnline && isElectron()) && (
                 <div className="catalog-state catalog-empty-state">
                   <ImageIcon size={30} />
                   <span>No templates yet. Create your first layout in the editor.</span>
-                  <Button variant="primary" onClick={handleEditorClick} disabled={!isAuthenticated}>Open Editor</Button>
+                  <Button variant="primary" onClick={handleEditorClick} disabled={!isAuthenticated && !isElectron()}>Open Editor</Button>
                 </div>
               )}
 
@@ -647,11 +707,11 @@ export default function CatalogScreen({ navigate }) {
                             <p style={{ marginTop: '8px' }}>Created {formatTemplateDate(template.created_at)}</p>
                           </div>
                           <div className="catalog-card-actions">
-                            {(isAuthenticated && (user?.role === 'super_admin' || user?.id === template.owner_id)) && (
+                            {(isAuthenticated && (user?.role === 'super_admin' || user?.id === template.owner_id || template.owner_id === 'local')) && (
                               <Button onClick={(e) => { e.stopPropagation(); loadTemplateToEditor(template); }}>Edit</Button>
                             )}
                             <Button variant="primary" onClick={(e) => { e.stopPropagation(); startBoothSession(template); }}>Start</Button>
-                            {(isAuthenticated && (user?.role === 'super_admin' || user?.id === template.owner_id)) && (
+                            {(isAuthenticated && (user?.role === 'super_admin' || user?.id === template.owner_id || template.owner_id === 'local')) && (
                               <Button
                                 className="catalog-delete-button"
                                 title="Delete template"
@@ -706,123 +766,10 @@ export default function CatalogScreen({ navigate }) {
           loadTemplateToEditor(selectedTemplate);
           setSelectedTemplate(null);
         }}
+        onUpload={isElectron() && !selectedTemplate?.cloud_id && activeTab === 'local' ? () => handleUpload(selectedTemplate) : undefined}
       />
 
-      {showAboutModal && (
-        <div
-          onClick={() => setShowAboutModal(false)}
-          style={{
-            position: 'fixed',
-            top: 0, left: 0, right: 0, bottom: 0,
-            backgroundColor: 'rgba(0,0,0,0.6)',
-            zIndex: 9999,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            backdropFilter: 'blur(3px)'
-          }}
-        >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            style={{
-              position: 'relative',
-              width: '800px',
-              maxWidth: '90vw',
-            }}
-          >
-            <img
-              src={aboutImage}
-              alt="About iBooth"
-              style={{ width: '100%', height: 'auto', display: 'block', objectFit: 'contain' }}
-            />
-
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.24, ease: 'easeOut' }}
-              style={{
-                position: 'absolute',
-                top: '22%',
-                left: '43%',
-                width: '44%',
-                minHeight: '38%',
-                display: 'flex',
-                flexDirection: 'column',
-                justifyContent: 'center',
-                gap: '0.8rem',
-                padding: '1.2rem 1.4rem',
-                color: '#f7f7f7',
-                textAlign: 'left',
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem' }}>
-                <motion.div
-                  whileHover={{ x: 3 }}
-                  transition={{ type: 'spring', stiffness: 280, damping: 20 }}
-                  style={{ fontSize: 'clamp(1.2rem, 2.2vw, 1.8rem)', fontWeight: 800, letterSpacing: '0.02em' }}
-                >
-                  About iBooth
-                </motion.div>
-                <motion.div
-                  whileHover={{ y: -2, scale: 1.05 }}
-                  whileTap={{ scale: 0.96 }}
-                  transition={{ type: 'spring', stiffness: 300, damping: 18 }}
-                >
-                  <Button
-                    type="button"
-                    onClick={() => setShowAboutModal(false)}
-                    aria-label="Close about dialog"
-                    style={{
-                      minWidth: '38px',
-                      width: '38px',
-                      height: '38px',
-                      padding: 0,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      flexShrink: 0,
-                      marginRight: '-8px',
-                      transition: 'filter 0.2s ease',
-                    }}
-                  >
-                    <X size={20} />
-                  </Button>
-                </motion.div>
-              </div>
-              <div style={{ fontSize: 'clamp(0.78rem, 1.3vw, 0.96rem)', lineHeight: 1.6, color: 'rgba(255,255,255,0.88)' }}>
-                iBooth is a completely free photobooth app built for creating,
-                capturing, and printing photo strip experiences.
-              </div>
-              <div style={{ fontSize: 'clamp(0.72rem, 1.15vw, 0.88rem)', lineHeight: 1.55, color: 'rgba(255,255,255,0.68)' }}>
-                This app may still feel buggy or slow in some places.
-              </div>
-              <div
-                style={{
-                  fontSize: 'clamp(0.72rem, 1.15vw, 0.88rem)',
-                  lineHeight: 1.55,
-                  color: 'rgba(255,255,255,0.68)',
-                }}
-              >
-                Part of{' '}
-                <motion.a
-                  href="https://arwndoprtma.space"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  whileHover={{ x: 3 }}
-                  transition={{ type: 'spring', stiffness: 280, damping: 20 }}
-                  style={{
-                    display: 'inline-block',
-                    color: 'rgba(174, 214, 255, 0.92)',
-                    textDecoration: 'underline',
-                  }}
-                >
-                  arwndoprtma.space
-                </motion.a>
-              </div>
-            </motion.div>
-          </div>
-        </div>
-      )}
+      {showAboutModal && <AboutModal onClose={() => setShowAboutModal(false)} />}
 
       <Dialog
         isOpen={Boolean(templateToDelete)}

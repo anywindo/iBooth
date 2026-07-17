@@ -7,7 +7,7 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from '../components/Button.jsx';
 import AuthModal from '../components/AuthModal.jsx';
 import exampleImage from '../assets/example.jpg';
-import aboutImage from '../assets/about.png';
+import { AboutModal } from '../components/AboutModal.jsx';
 import shutterSound from '../assets/SHUTTER.mp3';
 import { useStore } from '../core/useStore.js';
 import { useAuthStore } from '../store/authStore.js';
@@ -184,10 +184,12 @@ export default function LandingScreen() {
   const [headlineSequence, setHeadlineSequence] = useState(0);
   const [stats, setStats] = useState({ users: 0, templates: 0 });
   const [templatesList, setTemplatesList] = useState([]);
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
   const shutterAudioRef = useRef(null);
   const showToast = useStore((store) => store.showToast);
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const fetchTemplates = useStore((store) => store.fetchTemplates);
+  const fetchCloudTemplates = useStore((store) => store.fetchCloudTemplates);
 
   const [isInterrupted, setIsInterrupted] = useState(false);
   const interruptTimeoutRef = useRef(null);
@@ -211,10 +213,21 @@ export default function LandingScreen() {
   }, []);
 
   useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
+
+  useEffect(() => {
     let active = true;
     async function loadStats() {
       try {
-        const res = await fetchTemplates();
+        const res = isOnline ? await fetchCloudTemplates() : await fetchTemplates();
         if (!active) return;
         if (res.success && res.data && res.data.length > 0) {
           const templates = res.data;
@@ -348,8 +361,9 @@ export default function LandingScreen() {
 
   const menu = (
     <div style={{ display: 'flex', gap: '8px' }}>
-      <button className="menu-dropdown-button" onClick={handleEditorClick} disabled={!isAuthenticated}>Editor</button>
+      <button className="menu-dropdown-button" onClick={() => navigate('/')}>Home</button>
       <button className="menu-dropdown-button" onClick={() => navigate('/catalog')}>Catalog</button>
+      <button className="menu-dropdown-button" onClick={handleEditorClick} disabled={!isAuthenticated}>Editor</button>
       {/* <div className="menu-dropdown" onMouseLeave={() => setHelpMenuOpen(false)}>
         <button className="menu-dropdown-button" onPointerDown={() => setHelpMenuOpen(!helpMenuOpen)}>Help</button>
         {helpMenuOpen && (
@@ -456,7 +470,7 @@ export default function LandingScreen() {
       statusLabel="Clear"
       statusBar={
         <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
-          <div>iBooth v{packageJson.version}</div>
+          <button onClick={() => setShowAboutModal(true)} style={{ background: 'transparent', border: 'none', color: 'inherit', padding: 0, cursor: 'pointer', boxShadow: 'none', minHeight: 'auto', minWidth: 'auto', fontFamily: 'inherit', fontSize: 'inherit' }}>iBooth v{packageJson.version}</button>
           <button onClick={() => navigate('/privacy')} style={{ background: 'transparent', border: 'none', color: 'inherit', padding: 0, textDecoration: 'underline', cursor: 'pointer', boxShadow: 'none', minHeight: 'auto', minWidth: 'auto' }}>Privacy Policy</button>
           <button onClick={() => navigate('/terms')} style={{ background: 'transparent', border: 'none', color: 'inherit', padding: 0, textDecoration: 'underline', cursor: 'pointer', boxShadow: 'none', minHeight: 'auto', minWidth: 'auto' }}>Terms of Service</button>
         </div>
@@ -587,58 +601,60 @@ export default function LandingScreen() {
                 </div>
               </motion.div>
 
-              <motion.div
-                initial={{ opacity: 0, y: 30 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true, amount: 0.3 }}
-                transition={{ duration: 0.6, ease: 'easeOut', delay: 0.2 }}
-              >
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginBottom: '1.5rem', alignItems: 'flex-start' }}>
-                  <h2 style={{ fontSize: '1.5rem', margin: 0, fontWeight: 600 }}>Community Stats</h2>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
-                    <Button variant="primary" onClick={handleBecomeCreatorClick} style={{ flexShrink: 0 }}>Become a Creator <Sparkles size={16} style={{ marginLeft: '6px' }} /></Button>
-                    <p style={{ margin: 0, color: 'var(--text)', fontSize: '0.95rem', maxWidth: '500px', lineHeight: '1.5' }}>
-                      Join a growing community of creative minds! Start designing your first template today!
-                    </p>
+              {isOnline && (
+                <motion.div
+                  initial={{ opacity: 0, y: 30 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true, amount: 0.3 }}
+                  transition={{ duration: 0.6, ease: 'easeOut', delay: 0.2 }}
+                >
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginBottom: '1.5rem', alignItems: 'flex-start' }}>
+                    <h2 style={{ fontSize: '1.5rem', margin: 0, fontWeight: 600 }}>Community Stats</h2>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+                      <Button variant="primary" onClick={handleBecomeCreatorClick} style={{ flexShrink: 0 }}>Become a Creator <Sparkles size={16} style={{ marginLeft: '6px' }} /></Button>
+                      <p style={{ margin: 0, color: 'var(--text)', fontSize: '0.95rem', maxWidth: '500px', lineHeight: '1.5' }}>
+                        Join a growing community of creative minds! Start designing your first template today!
+                      </p>
+                    </div>
                   </div>
-                </div>
-                <div style={{
-                  display: 'flex',
-                  flexDirection: 'row',
-                  gap: '1.5rem',
-                  overflowX: 'auto',
-                  paddingBottom: '1rem',
-                  scrollbarWidth: 'thin',
-                  msOverflowStyle: 'none'
-                }}>
-                  {[
-                    { value: stats.users, label: 'Total creators' },
-                    { value: stats.templates, label: 'Templates created' }
-                  ].map((stat, i) => (
-                    <motion.div
-                      key={i}
-                      initial={{ opacity: 0, scale: 0.95 }}
-                      whileInView={{ opacity: 1, scale: 1 }}
-                      viewport={{ once: true }}
-                      transition={{ duration: 0.5, delay: i * 0.1 + 0.5, ease: 'easeOut' }}
-                      style={{
-                        display: 'flex',
-                        flexDirection: 'column',
-                        gap: '0.25rem',
-                        flex: '0 0 200px',
-                        background: 'var(--code-bg)',
-                        padding: '1.25rem',
-                        borderRadius: '8px',
-                        border: '1px solid var(--border)',
-                        alignItems: 'center',
-                        textAlign: 'center'
-                      }}>
-                      <span style={{ fontFamily: 'var(--mono)', color: 'var(--accent)', fontWeight: 'bold', fontSize: '2rem' }}>{stat.value}</span>
-                      <span style={{ color: 'var(--text-h)', fontSize: '1rem', fontWeight: 500 }}>{stat.label}</span>
-                    </motion.div>
-                  ))}
-                </div>
-              </motion.div>
+                  <div style={{
+                    display: 'flex',
+                    flexDirection: 'row',
+                    gap: '1.5rem',
+                    overflowX: 'auto',
+                    paddingBottom: '1rem',
+                    scrollbarWidth: 'thin',
+                    msOverflowStyle: 'none'
+                  }}>
+                    {[
+                      { value: stats.users, label: 'Total creators' },
+                      { value: stats.templates, label: 'Templates created' }
+                    ].map((stat, i) => (
+                      <motion.div
+                        key={i}
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        whileInView={{ opacity: 1, scale: 1 }}
+                        viewport={{ once: true }}
+                        transition={{ duration: 0.5, delay: i * 0.1 + 0.5, ease: 'easeOut' }}
+                        style={{
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: '0.25rem',
+                          flex: '0 0 200px',
+                          background: 'var(--code-bg)',
+                          padding: '1.25rem',
+                          borderRadius: '8px',
+                          border: '1px solid var(--border)',
+                          alignItems: 'center',
+                          textAlign: 'center'
+                        }}>
+                        <span style={{ fontFamily: 'var(--mono)', color: 'var(--accent)', fontWeight: 'bold', fontSize: '2rem' }}>{stat.value}</span>
+                        <span style={{ color: 'var(--text-h)', fontSize: '1rem', fontWeight: 500 }}>{stat.label}</span>
+                      </motion.div>
+                    ))}
+                  </div>
+                </motion.div>
+              )}
             </div>
 
             <div style={{ flex: '0 0 auto', display: 'flex', margin: '-2.5rem 0' }}>
@@ -656,7 +672,7 @@ export default function LandingScreen() {
             padding: '2.5rem 3rem',
             boxSizing: 'border-box',
             display: 'grid',
-            gridTemplateColumns: '1fr 1fr',
+            gridTemplateColumns: isOnline ? '1fr 1fr' : '1fr',
             gap: '4rem',
             textAlign: 'left',
             overflow: 'hidden',
@@ -698,12 +714,14 @@ export default function LandingScreen() {
                 })}
               </div>
             </div>
-            <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
-              <h2 style={{ fontSize: '1.5rem', marginBottom: '1.5rem', fontWeight: 600, flexShrink: 0 }}>Contributors</h2>
-              <div style={{ flex: 1, position: 'relative', minHeight: 0 }}>
-                <CreditsSandbox templates={templatesList} />
+            {isOnline && (
+              <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
+                <h2 style={{ fontSize: '1.5rem', marginBottom: '1.5rem', fontWeight: 600, flexShrink: 0 }}>Contributors</h2>
+                <div style={{ flex: 1, position: 'relative', minHeight: 0 }}>
+                  <CreditsSandbox templates={templatesList} />
+                </div>
               </div>
-            </div>
+            )}
             {/* <h2 style={{ fontSize: '1.5rem', marginBottom: '1.5rem', fontWeight: 600, flexShrink: 0 }}>Latest Updates</h2> */}
           </section>
 
@@ -752,121 +770,7 @@ export default function LandingScreen() {
         </div>
       </div>
 
-      {showAboutModal && (
-        <div
-          onClick={() => setShowAboutModal(false)}
-          style={{
-            position: 'fixed',
-            top: 0, left: 0, right: 0, bottom: 0,
-            backgroundColor: 'rgba(0,0,0,0.6)',
-            zIndex: 9999,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            backdropFilter: 'blur(3px)'
-          }}
-        >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            style={{
-              position: 'relative',
-              width: '800px',
-              maxWidth: '90vw',
-            }}
-          >
-            <img
-              src={aboutImage}
-              alt="About iBooth"
-              style={{ width: '100%', height: 'auto', display: 'block', objectFit: 'contain' }}
-            />
-
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.24, ease: 'easeOut' }}
-              style={{
-                position: 'absolute',
-                top: '22%',
-                left: '43%',
-                width: '44%',
-                minHeight: '38%',
-                display: 'flex',
-                flexDirection: 'column',
-                justifyContent: 'center',
-                gap: '0.8rem',
-                padding: '1.2rem 1.4rem',
-                color: '#f7f7f7',
-                textAlign: 'left',
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem' }}>
-                <motion.div
-                  whileHover={{ x: 3 }}
-                  transition={{ type: 'spring', stiffness: 280, damping: 20 }}
-                  style={{ fontSize: 'clamp(1.2rem, 2.2vw, 1.8rem)', fontWeight: 800, letterSpacing: '0.02em' }}
-                >
-                  About iBooth
-                </motion.div>
-                <motion.div
-                  whileHover={{ y: -2, scale: 1.05 }}
-                  whileTap={{ scale: 0.96 }}
-                  transition={{ type: 'spring', stiffness: 300, damping: 18 }}
-                >
-                  <Button
-                    type="button"
-                    onClick={() => setShowAboutModal(false)}
-                    aria-label="Close about dialog"
-                    style={{
-                      minWidth: '38px',
-                      width: '38px',
-                      height: '38px',
-                      padding: 0,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      flexShrink: 0,
-                      marginRight: '-8px',
-                      transition: 'filter 0.2s ease',
-                    }}
-                  >
-                    <X size={20} />
-                  </Button>
-                </motion.div>
-              </div>
-              <div style={{ fontSize: 'clamp(0.78rem, 1.3vw, 0.96rem)', lineHeight: 1.6, color: 'rgba(255,255,255,0.88)' }}>
-                iBooth is a completely free photobooth app built for creating,
-                capturing, and printing photo strip experiences.
-              </div>
-              <div style={{ fontSize: 'clamp(0.72rem, 1.15vw, 0.88rem)', lineHeight: 1.55, color: 'rgba(255,255,255,0.68)' }}>
-                This app may still feel buggy or slow in some places.
-              </div>
-              <div
-                style={{
-                  fontSize: 'clamp(0.72rem, 1.15vw, 0.88rem)',
-                  lineHeight: 1.55,
-                  color: 'rgba(255,255,255,0.68)',
-                }}
-              >
-                Part of{' '}
-                <motion.a
-                  href="https://arwndoprtma.space"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  whileHover={{ x: 3 }}
-                  transition={{ type: 'spring', stiffness: 280, damping: 20 }}
-                  style={{
-                    display: 'inline-block',
-                    color: 'rgba(174, 214, 255, 0.92)',
-                    textDecoration: 'underline',
-                  }}
-                >
-                  arwndoprtma.space
-                </motion.a>
-              </div>
-            </motion.div>
-          </div>
-        </div>
-      )}
+      {showAboutModal && <AboutModal onClose={() => setShowAboutModal(false)} />}
     </AppShell>
   );
 }

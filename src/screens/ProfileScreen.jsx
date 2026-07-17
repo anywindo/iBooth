@@ -5,8 +5,9 @@ import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianG
 import { AppShell } from '../components/AppShell';
 import { useAuthStore } from '../store/authStore';
 import { useStore, normalizeTemplate } from '../core/useStore';
-import { User, Settings, Image as ImageIcon, Shield, Key, Search, X, ChevronLeft, ChevronRight, Filter, Edit2, Trash2, Plus, Layout, Camera, BarChart2 } from 'lucide-react';
-import aboutImage from '../assets/about.png';
+import { User, Settings, Image as ImageIcon, Shield, Key, Search, X, ChevronLeft, ChevronRight, Filter, Edit2, Trash2, Plus, Layout, Camera, BarChart2, Printer } from 'lucide-react';
+import { isElectron } from '../core/platform.js';
+import { AboutModal } from '../components/AboutModal.jsx';
 import { TemplateThumbnail, getInitials, getRandomColor } from './CatalogScreen';
 import { TemplateDrawer } from '../components/TemplateDrawer';
 import { Button } from '../components/Button';
@@ -45,8 +46,9 @@ export default function ProfileScreen({ navigate }) {
   const [showAboutModal, setShowAboutModal] = useState(false);
   const menu = (
     <div style={{ display: 'flex', gap: '8px' }}>
-      <button className="menu-dropdown-button" onClick={() => navigate('/editor', { state: { returnTo: '/profile' } })}>Editor</button>
+      <button className="menu-dropdown-button" onClick={() => navigate('/')}>Home</button>
       <button className="menu-dropdown-button" onClick={() => navigate('/catalog')}>Catalog</button>
+      <button className="menu-dropdown-button" onClick={() => navigate('/editor', { state: { returnTo: '/profile' } })}>Editor</button>
       {/* <div className="menu-dropdown" onMouseLeave={() => setHelpMenuOpen(false)}>
         <button className="menu-dropdown-button" onPointerDown={() => setHelpMenuOpen(!helpMenuOpen)}>Help</button>
         {helpMenuOpen && (
@@ -82,6 +84,17 @@ export default function ProfileScreen({ navigate }) {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [passwordStatus, setPasswordStatus] = useState(null);
   const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
+
+  // Printer settings (Electron only)
+  const printerSettings = useStore((s) => s.printerSettings);
+  const setPrinterSettings = useStore((s) => s.setPrinterSettings);
+  const [availablePrinters, setAvailablePrinters] = useState([]);
+
+  useEffect(() => {
+    if (isElectron() && window.electronAPI?.print?.getPrinters) {
+      window.electronAPI.print.getPrinters().then(setAvailablePrinters).catch(() => {});
+    }
+  }, []);
 
   // User Strips state
   const [userStrips, setUserStrips] = useState([]);
@@ -134,7 +147,7 @@ export default function ProfileScreen({ navigate }) {
       const response = await fetchTemplatesMethod(user?.id);
       if (response.success) setUserStrips(response.data);
       if (selectedStrip && selectedStrip.id === stripToDelete) {
-         setSelectedStrip(null);
+        setSelectedStrip(null);
       }
     } else {
       showToast(res.error || 'Failed to delete template', 'error');
@@ -337,14 +350,14 @@ export default function ProfileScreen({ navigate }) {
                   <AreaChart data={chartData} margin={{ top: 10, right: 0, left: -20, bottom: 0 }}>
                     <defs>
                       <linearGradient id="colorStrips" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="var(--accent)" stopOpacity={0.3}/>
-                        <stop offset="95%" stopColor="var(--accent)" stopOpacity={0}/>
+                        <stop offset="5%" stopColor="var(--accent)" stopOpacity={0.3} />
+                        <stop offset="95%" stopColor="var(--accent)" stopOpacity={0} />
                       </linearGradient>
                     </defs>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--line)" />
                     <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: 'var(--muted)' }} dy={10} />
                     <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: 'var(--muted)' }} />
-                    <Tooltip 
+                    <Tooltip
                       contentStyle={{ background: 'var(--panel)', border: '1px solid var(--border)', borderRadius: '8px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
                       itemStyle={{ color: 'var(--ink)', fontWeight: 600 }}
                       labelStyle={{ color: 'var(--muted)', marginBottom: '4px' }}
@@ -367,18 +380,18 @@ export default function ProfileScreen({ navigate }) {
               </span>
               <Button variant="ghost" onClick={() => setActiveTab('strips')} style={{ fontSize: '12px', padding: '4px 8px' }}>View All</Button>
             </h3>
-            
+
             {recentStrips.length > 0 ? (
               <div style={{ display: 'flex', gap: '16px', overflowX: 'auto', paddingBottom: '12px' }}>
                 {recentStrips.map(strip => (
-                  <div 
-                    key={strip.id} 
+                  <div
+                    key={strip.id}
                     onClick={() => setSelectedStrip(strip)}
-                    style={{ 
-                      minWidth: '160px', 
-                      background: 'var(--bg)', 
-                      borderRadius: '8px', 
-                      border: '1px solid var(--line)', 
+                    style={{
+                      minWidth: '160px',
+                      background: 'var(--bg)',
+                      borderRadius: '8px',
+                      border: '1px solid var(--line)',
                       overflow: 'hidden',
                       cursor: 'pointer',
                       transition: 'transform 0.15s ease, box-shadow 0.15s ease',
@@ -478,7 +491,7 @@ export default function ProfileScreen({ navigate }) {
             </div>
 
             {deleteStatus && (
-              <motion.div 
+              <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: 20 }}
@@ -789,6 +802,74 @@ export default function ProfileScreen({ navigate }) {
         </motion.div>
       );
     }
+
+    if (activeTab === 'printer' && isElectron()) {
+      return (
+        <motion.div
+          key="printer"
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -10 }}
+          className="profile-page profile-settings-page"
+        >
+          <div className="profile-settings-card">
+            <h2 className="profile-section-title">
+              <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Printer size={20} style={{ color: 'var(--accent)' }} /> Printer Settings
+              </span>
+            </h2>
+            <p className="profile-settings-copy">
+              Configure auto-printing settings. If enabled, clicking "Print" will print immediately to the selected printer without showing a print dialog.
+            </p>
+            <div className="profile-settings-form">
+              <div className="profile-field" style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                <input
+                  type="checkbox"
+                  id="printer-enabled"
+                  checked={printerSettings?.enabled || false}
+                  onChange={(e) => setPrinterSettings({ ...printerSettings, enabled: e.target.checked })}
+                  style={{ width: 'auto', margin: 0 }}
+                />
+                <label htmlFor="printer-enabled" style={{ margin: 0, fontWeight: 'normal', cursor: 'pointer' }}>Enable Automatic Printing (Skip Dialog)</label>
+              </div>
+
+              {printerSettings?.enabled && (
+                <>
+                  <div className="profile-field">
+                    <label className="profile-field-label">Select Printer</label>
+                    <select
+                      value={printerSettings?.deviceName || ''}
+                      onChange={(e) => setPrinterSettings({ ...printerSettings, deviceName: e.target.value })}
+                      className="profile-field-input"
+                      style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid var(--border)', background: 'var(--bg-card)', color: 'var(--text)' }}
+                    >
+                      <option value="">-- Select a Printer --</option>
+                      {availablePrinters.map((printer) => (
+                        <option key={printer.name} value={printer.name}>
+                          {printer.name} {printer.isDefault ? '(Default)' : ''}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="profile-field">
+                    <label className="profile-field-label">Copies</label>
+                    <input
+                      type="number"
+                      min="1"
+                      max="99"
+                      value={printerSettings?.copies || 1}
+                      onChange={(e) => setPrinterSettings({ ...printerSettings, copies: Math.max(1, parseInt(e.target.value) || 1) })}
+                      className="profile-field-input"
+                    />
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        </motion.div>
+      );
+    }
   };
 
   return (
@@ -800,6 +881,10 @@ export default function ProfileScreen({ navigate }) {
     >
       <main className="editor-layout" style={{ gridTemplateColumns: '300px 1fr' }}>
         <aside className="panel">
+          <div style={{ padding: '24px 20px 16px 20px', borderBottom: '1px solid var(--border)' }}>
+            <h1 style={{ fontSize: '20px', fontWeight: 800, margin: 0, color: 'var(--text-h)', lineHeight: '1.2' }}>My Account</h1>
+            <p style={{ fontSize: '12px', color: 'var(--text)', margin: '8px 0 0 0', lineHeight: '1.4' }}>Manage your account profile, settings, and data.</p>
+          </div>
           <CollapsibleSection title="ACCOUNT" note="Manage profile" defaultCollapsed={false}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '13px' }}>
               <div
@@ -843,6 +928,24 @@ export default function ProfileScreen({ navigate }) {
                 </strong>
                 <br />Edit email and password.
               </div>
+              {isElectron() && (
+                <>
+                  <hr style={{ width: '100%', border: 'none', borderTop: '1px solid var(--line)', margin: '4px 0' }} />
+                  <div
+                    onClick={() => setActiveTab('printer')}
+                    style={{
+                      cursor: 'pointer',
+                      opacity: activeTab === 'printer' ? 1 : 0.6,
+                      transition: 'opacity 0.2s ease'
+                    }}
+                  >
+                    <strong style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <Printer size={16} /> Printer
+                    </strong>
+                    <br />Configure auto-printing.
+                  </div>
+                </>
+              )}
             </div>
           </CollapsibleSection>
         </aside>
@@ -869,28 +972,7 @@ export default function ProfileScreen({ navigate }) {
         }}
       />
 
-      {showAboutModal && (
-        <div
-          onClick={() => setShowAboutModal(false)}
-          style={{
-            position: 'fixed',
-            top: 0, left: 0, right: 0, bottom: 0,
-            backgroundColor: 'rgba(0,0,0,0.6)',
-            zIndex: 9999,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            backdropFilter: 'blur(3px)'
-          }}
-        >
-          <img
-            onClick={(e) => e.stopPropagation()}
-            src={aboutImage}
-            alt="About iBooth"
-            style={{ width: '800px', maxWidth: '90vw', height: 'auto', display: 'block', objectFit: 'contain' }}
-          />
-        </div>
-      )}
+      {showAboutModal && <AboutModal onClose={() => setShowAboutModal(false)} />}
 
       <Dialog
         isOpen={Boolean(stripToDelete)}

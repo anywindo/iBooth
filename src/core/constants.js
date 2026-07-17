@@ -11,6 +11,7 @@ export const OUTPUT = CANVAS_PRESETS.find((preset) => preset.id === DEFAULT_PRES
 export const STORAGE_KEY = "photobooth-desktop-template";
 export const SESSION_KEY = "photobooth-desktop-session";
 export const THEME_KEY = "photobooth-desktop-theme";
+export const PRINTER_SETTINGS_KEY = "photobooth-printer-settings";
 
 export function getCanvasPreset(id) {
   return CANVAS_PRESETS.find((preset) => preset.id === id) || OUTPUT;

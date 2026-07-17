@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>iBooth Print</title>
+  <style>
+    @page {
+      margin: 0;
+    }
+    body, html {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+    }
+    img {
+      width: 100%;
+      height: 100%;
+      display: block;
+      object-fit: fill;
+    }
+  </style>
+</head>
+<body>
+  <img id="print-image" src="" />
+  <script>
+    const { ipcRenderer } = require('electron');
+    ipcRenderer.on('print-init', (event, { imagePath }) => {
+      const img = document.getElementById('print-image');
+      img.onload = () => {
+        ipcRenderer.send('print-ready');
+      };
+      img.onerror = () => {
+        ipcRenderer.send('print-error');
+      };
+      img.src = imagePath;
+    });
+  </script>
+</body>
+</html>

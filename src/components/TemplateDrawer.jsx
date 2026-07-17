@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, ZoomIn, ZoomOut, RotateCcw } from 'lucide-react';
+import { X, ZoomIn, ZoomOut, RotateCcw, CloudUpload } from 'lucide-react';
 import { Button } from './Button.jsx';
 
 export const formatTemplateDate = (dateString) => {
@@ -94,8 +94,8 @@ export const InteractivePreview = ({ template, style }) => {
                <img src="/photo-placeholder.webp" alt="placeholder" style={{ width: '100%', height: '100%', objectFit: 'cover' }} draggable="false" />
             </div>
           ))}
-          {template.frame_image_url && (
-            <img src={template.frame_image_url} alt="frame" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none' }} draggable="false" />
+          {(template.frameImage || template.frame_image_url) && (
+            <img src={template.frameImage || template.frame_image_url} alt="frame" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none' }} draggable="false" />
           )}
 
           {/* Specular Shine */}
@@ -171,7 +171,7 @@ export const InteractivePreview = ({ template, style }) => {
   );
 };
 
-export const TemplateDrawer = ({ template, user, isAuthenticated, onClose, onStart, onEdit }) => {
+export const TemplateDrawer = ({ template, user, isAuthenticated, onClose, onStart, onEdit, onUpload }) => {
   return (
     <AnimatePresence>
       {template && (
@@ -268,11 +268,15 @@ export const TemplateDrawer = ({ template, user, isAuthenticated, onClose, onSta
                 )}
               </div>
 
-              {/* Footer */}
               <div style={{ padding: '24px', borderTop: '1px solid var(--border)', display: 'flex', gap: '12px', background: 'linear-gradient(180deg, var(--bg) 0%, var(--panel) 100%)' }}>
                 <Button variant="primary" style={{ flex: 2 }} onClick={onStart}>Start Session</Button>
-                {(isAuthenticated && (user?.role === 'super_admin' || user?.id === template.owner_id)) && (
+                {(isAuthenticated && (user?.role === 'super_admin' || user?.id === template.owner_id || template.owner_id === 'local')) && (
                   <Button style={{ flex: 1 }} onClick={onEdit}>Edit</Button>
+                )}
+                {onUpload && (
+                  <Button style={{ flex: 1, display: 'flex', gap: '8px', alignItems: 'center', justifyContent: 'center' }} onClick={onUpload}>
+                    <CloudUpload size={16} /> Upload
+                  </Button>
                 )}
               </div>
             </div>

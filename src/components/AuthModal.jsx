@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useAuthStore } from '../store/authStore';
 import { useStore } from '../core/useStore';
 import { Button } from './Button.jsx';
+import { Turnstile } from '@marsidev/react-turnstile';
 
 export default function AuthModal({ onClose, initialView = 'login' }) {
   const [view, setView] = useState(initialView); // 'login', 'register', 'forgot-password'
@@ -15,6 +16,10 @@ export default function AuthModal({ onClose, initialView = 'login' }) {
   const [formError, setFormError] = useState('');
   
   const [isLoading, setIsLoading] = useState(false);
+  const [captchaToken, setCaptchaToken] = useState(null);
+  
+  const siteKey = import.meta.env.VITE_TURNSTILE_SITE_KEY;
+  
   const showToast = useStore((store) => store.showToast);
   
   const { login, register, forgotPassword } = useAuthStore();
@@ -25,7 +30,12 @@ export default function AuthModal({ onClose, initialView = 'login' }) {
     setFormError('');
 
     if (view === 'login') {
-      const result = await login({ email, password });
+      if (siteKey && !captchaToken) {
+        setFormError('Please wait for Turnstile to verify you.');
+        setIsLoading(false);
+        return;
+      }
+      const result = await login({ email, password, captchaToken });
       if (result.success) {
         showToast('Logged in successfully!', 'success');
         onClose();
@@ -54,7 +64,13 @@ export default function AuthModal({ onClose, initialView = 'login' }) {
         return;
       }
       
-      const result = await register({ name, email, password, password_confirmation: passwordConfirmation });
+      if (siteKey && !captchaToken) {
+        setFormError('Please wait for Turnstile to verify you.');
+        setIsLoading(false);
+        return;
+      }
+      
+      const result = await register({ name, email, password, password_confirmation: passwordConfirmation, captchaToken });
       if (result.success) {
         if (result.requiresEmailConfirmation) {
           showToast('Please check your email to confirm your account before logging in.', 'success');
@@ -214,6 +230,18 @@ export default function AuthModal({ onClose, initialView = 'login' }) {
         
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
           {renderForm()}
+          
+          {(view === 'login' || view === 'register') && siteKey && (
+            <div style={{ display: 'flex', justifyContent: 'center', marginTop: '0.5rem' }}>
+              <Turnstile 
+                siteKey={siteKey}
+                onSuccess={(token) => setCaptchaToken(token)}
+                options={{
+                  theme: 'light',
+                }}
+              />
+            </div>
+          )}
           
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '1rem' }}>
             <Button type="button" onClick={onClose} style={{ background: '#eee', color: '#333' }}>Cancel</Button>

@@ -1,15 +1,21 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
 import { useStore } from '../core/useStore';
-import { Sun, Moon } from 'lucide-react';
+import { Sun, Moon, RefreshCcw, ChevronLeft, ChevronRight } from 'lucide-react';
 import defaultLogo from '../assets/ibootlogo-cb.png';
+import whiteLogo from '../assets/ibootlogo-cw.png';
 import iconLogo from '../assets/favicon.png';
+import { isElectron } from '../core/platform.js';
+import Dialog from './Dialog.jsx';
+import { Button } from './Button.jsx';
 
 export function AppShell({ title, subtitle, actions, menu, statusBar, statusBarRight, statusLabel = 'Clear', children, showBackButton = false, onBack, hideAuthButton = false, hideAppearance = false }) {
   const { user, logout } = useAuthStore();
   const navigate = useNavigate();
+  const location = useLocation();
   const [showProfileMenu, setShowProfileMenu] = useState(false);
+  const [showSyncDialog, setShowSyncDialog] = useState(false);
   const menuRef = useRef(null);
 
   const theme = useStore((store) => store.theme);
@@ -32,8 +38,8 @@ export function AppShell({ title, subtitle, actions, menu, statusBar, statusBarR
 
   return (
     <div className="app-shell">
-      <header className="topbar">
-        <div className="brand">
+      <header className="topbar" style={{ paddingLeft: isElectron() ? '72px' : undefined, WebkitAppRegion: isElectron() ? 'drag' : 'auto' }}>
+        <div className="brand" style={{ WebkitAppRegion: 'no-drag', borderRight: isElectron() ? 'none' : undefined, width: isElectron() ? 'auto' : undefined, paddingRight: isElectron() ? '16px' : undefined }}>
           <button
             type="button"
             onClick={() => navigate('/')}
@@ -51,23 +57,39 @@ export function AppShell({ title, subtitle, actions, menu, statusBar, statusBarR
             }}
           >
             <img src={iconLogo} alt="iBooth Icon" style={{ width: '30px', height: '30px', borderRadius: '8px', objectFit: 'contain' }} />
-            {(!title || title === 'iBooth') ? (
-              <img src={defaultLogo} alt="iBooth Branding" style={{ width: 'auto', height: '24px', objectFit: 'contain' }} />
-            ) : (
-              <span>{title}</span>
-            )}
+            <img src={theme === 'dark' ? whiteLogo : defaultLogo} alt="iBooth Branding" style={{ width: 'auto', height: '24px', objectFit: 'contain' }} />
           </button>
-          {showBackButton && (
-            <button className="back-button" onClick={onBack} aria-label="Back to home">
-              Back
-            </button>
+          {isElectron() && (
+            <div style={{ display: 'flex', gap: '4px', marginLeft: '12px', WebkitAppRegion: 'no-drag' }}>
+              <button 
+                onClick={() => { if (location.pathname !== '/') navigate(-1); }} 
+                style={{ background: 'transparent', border: 'none', padding: '4px', cursor: location.pathname === '/' ? 'default' : 'pointer', color: 'var(--text)', opacity: location.pathname === '/' ? 0.3 : 1, display: 'flex', alignItems: 'center' }}
+              >
+                <ChevronLeft size={20} />
+              </button>
+              <button 
+                onClick={() => navigate(1)} 
+                style={{ background: 'transparent', border: 'none', padding: '4px', cursor: 'pointer', color: 'var(--text)', display: 'flex', alignItems: 'center' }}
+              >
+                <ChevronRight size={20} />
+              </button>
+            </div>
+          )}
+          {isElectron() && menu && (
+            <div style={{ display: 'flex', marginLeft: '16px', WebkitAppRegion: 'no-drag' }}>
+              {menu}
+            </div>
           )}
         </div>
         <div className="menu-bar" style={{ display: 'flex', alignItems: 'center', gap: '16px', flex: 1 }}>
           {subtitle && <span style={{ fontSize: '15px', fontWeight: 800 }}>{subtitle}</span>}
-          {menu}
+          {!isElectron() && (
+            <div style={{ WebkitAppRegion: 'no-drag' }}>
+              {menu}
+            </div>
+          )}
         </div>
-        <div className="toolbar-group" style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <div className="toolbar-group" style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: '8px', WebkitAppRegion: 'no-drag' }}>
           {actions}
           {!hideAuthButton && (
             <div style={{ position: 'relative' }} ref={menuRef}>
@@ -85,19 +107,30 @@ export function AppShell({ title, subtitle, actions, menu, statusBar, statusBarR
               </button>
               {user && showProfileMenu && (
                 <div className="menu-dropdown-content" style={{ position: 'absolute', top: '100%', right: 0, left: 'auto', marginTop: '8px' }}>
-                  <button 
-                    className="menu-dropdown-item"
-                    onClick={() => { setShowProfileMenu(false); navigate('/profile'); }}
-                  >
-                    Profile
-                  </button>
-                  <button 
-                    className="menu-dropdown-item"
-                    style={{ color: '#ff4d4f' }}
-                    onClick={() => { setShowProfileMenu(false); handleLogout(); }}
-                  >
-                    Log Out
-                  </button>
+                  {user.id !== 'local' ? (
+                    <>
+                      <button 
+                        className="menu-dropdown-item"
+                        onClick={() => { setShowProfileMenu(false); navigate('/profile'); }}
+                      >
+                        Profile
+                      </button>
+                      <button 
+                        className="menu-dropdown-item"
+                        style={{ color: '#ff4d4f' }}
+                        onClick={() => { setShowProfileMenu(false); handleLogout(); }}
+                      >
+                        Log Out
+                      </button>
+                    </>
+                  ) : (
+                    <button 
+                      className="menu-dropdown-item"
+                      onClick={() => { setShowProfileMenu(false); navigate('/auth'); }}
+                    >
+                      Login to Cloud
+                    </button>
+                  )}
                 </div>
               )}
             </div>

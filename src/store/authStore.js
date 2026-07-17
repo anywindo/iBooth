@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { supabase } from '../utils/supabase.js';
+import { isElectron } from '../core/platform.js';
 
 const extractError = (error, defaultMsg) => {
   return error?.message || defaultMsg;
@@ -34,15 +35,31 @@ export const useAuthStore = create((set, get) => {
           user: { ...state.user, ...session.user, name }
         }));
       } else {
-        set({ user: null, isAuthenticated: false, isLoading: false });
+        if (isElectron()) {
+          set({ 
+            user: { id: 'local', name: 'Local User', email: 'local@app.offline' }, 
+            isAuthenticated: true, 
+            isLoading: false 
+          });
+        } else {
+          set({ user: null, isAuthenticated: false, isLoading: false });
+        }
       }
     } catch (err) {
       console.error('onAuthStateChange error:', err);
-      set({ 
-        user: session ? { ...session.user } : null, 
-        isAuthenticated: !!session, 
-        isLoading: false 
-      });
+      if (isElectron()) {
+        set({ 
+          user: session ? { ...session.user } : { id: 'local', name: 'Local User', email: 'local@app.offline' }, 
+          isAuthenticated: true, 
+          isLoading: false 
+        });
+      } else {
+        set({ 
+          user: session ? { ...session.user } : null, 
+          isAuthenticated: !!session, 
+          isLoading: false 
+        });
+      }
     }
   });
 
@@ -52,6 +69,15 @@ export const useAuthStore = create((set, get) => {
     isLoading: true,
     
     checkAuth: async () => {
+      if (isElectron()) {
+        set({ 
+          user: { id: 'local', name: 'Local User', email: 'local@app.offline' }, 
+          isAuthenticated: true, 
+          isLoading: false 
+        });
+        // We still check Supabase in the background if online, but we don't block
+      }
+
       // Prevent indefinite hanging by adding a timeout
       const timeoutId = setTimeout(() => {
         if (get().isLoading) {
@@ -61,7 +87,9 @@ export const useAuthStore = create((set, get) => {
       }, 5000);
 
       try {
-        set({ isLoading: true });
+        if (!isElectron()) {
+          set({ isLoading: true });
+        }
         const { data: { session }, error } = await supabase.auth.getSession();
         if (error) throw error;
         
@@ -81,11 +109,15 @@ export const useAuthStore = create((set, get) => {
             isLoading: false 
           });
         } else {
-          set({ user: null, isAuthenticated: false, isLoading: false });
+          if (!isElectron()) {
+            set({ user: null, isAuthenticated: false, isLoading: false });
+          }
         }
       } catch (error) {
         console.error('checkAuth error:', error);
-        set({ user: null, isAuthenticated: false, isLoading: false });
+        if (!isElectron()) {
+          set({ user: null, isAuthenticated: false, isLoading: false });
+        }
       } finally {
         clearTimeout(timeoutId);
       }
@@ -95,8 +127,15 @@ export const useAuthStore = create((set, get) => {
       try {
         const email = (typeof params === 'object' ? params.email : params)?.trim();
         const password = typeof params === 'object' ? params.password : undefined;
+        const captchaToken = typeof params === 'object' ? params.captchaToken : undefined;
+        
+        const signInOptions = { email, password };
+        if (captchaToken) {
+          signInOptions.options = { captchaToken };
+        }
+        
         const result = await Promise.race([
-          supabase.auth.signInWithPassword({ email, password }),
+          supabase.auth.signInWithPassword(signInOptions),
           new Promise((_, reject) => setTimeout(() => reject(new Error('Login request timed out. Please refresh the page and try again.')), 10000))
         ]);
         if (result.error) throw result.error;
@@ -155,15 +194,21 @@ export const useAuthStore = create((set, get) => {
         const email = (typeof params === 'object' ? params.email : params)?.trim();
         const password = typeof params === 'object' ? params.password : undefined;
         const name = typeof params === 'object' ? params.name : undefined;
+        const captchaToken = typeof params === 'object' ? params.captchaToken : undefined;
+        
+        const options = { 
+          data: { display_name: name },
+          emailRedirectTo: `${window.location.origin}/`
+        };
+        if (captchaToken) {
+          options.captchaToken = captchaToken;
+        }
         
         const result = await Promise.race([
           supabase.auth.signUp({
             email,
             password,
-            options: { 
-              data: { display_name: name },
-              emailRedirectTo: `${window.location.origin}/`
-            }
+            options
           }),
           new Promise((_, reject) => setTimeout(() => reject(new Error('Registration request timed out. Please try again.')), 10000))
         ]);

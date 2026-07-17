@@ -7,6 +7,7 @@ import { Button } from '../components/Button.jsx';
 import TemplateCanvas from '../components/TemplateCanvas.jsx';
 import Dialog from '../components/Dialog.jsx';
 import { motion } from 'framer-motion';
+import { isElectron } from '../core/platform.js';
 
 function slug(value) {
   return String(value || 'photobooth-strip')
@@ -119,7 +120,7 @@ export default function PreviewScreen({ navigate }) {
   const exportWidth = imageWidth + 2 * bleedPixels;
   const exportHeight = imageHeight + 2 * bleedPixels;
 
-  function downloadFinal() {
+  async function downloadFinal() {
     if (!session.image) return;
     const offscreen = document.createElement('canvas');
     offscreen.width = exportWidth;
@@ -141,9 +142,49 @@ export default function PreviewScreen({ navigate }) {
     }
 
     const img = new Image();
-    img.onload = () => {
+    img.onload = async () => {
       ctx.drawImage(img, bleedPixels, bleedPixels, imageWidth, imageHeight);
       const mimeType = format === 'jpeg' ? 'image/jpeg' : 'image/png';
+
+      // If CMYK mode, convert colours to CMYK gamut
+      if (colorMode === 'cmyk') {
+        if (isElectron()) {
+          // Electron: use sharp for accurate CMYK conversion
+          try {
+            const dataUrl = offscreen.toDataURL(mimeType, 1.0);
+            const cmykDataUrl = await window.electronAPI.print.convertToCmyk(dataUrl);
+            const link = document.createElement('a');
+            link.href = cmykDataUrl;
+            link.download = `${filename || 'photobooth'}.${format}`;
+            link.click();
+            return;
+          } catch (err) {
+            console.error('CMYK conversion failed, falling back to canvas conversion:', err);
+          }
+        }
+
+        // Browser / fallback: RGB→CMYK→RGB round-trip via canvas pixels
+        const imageData = ctx.getImageData(0, 0, offscreen.width, offscreen.height);
+        const pixels = imageData.data;
+        for (let i = 0; i < pixels.length; i += 4) {
+          const r = pixels[i] / 255;
+          const g = pixels[i + 1] / 255;
+          const b = pixels[i + 2] / 255;
+          const k = 1 - Math.max(r, g, b);
+          if (k >= 1) {
+            pixels[i] = pixels[i + 1] = pixels[i + 2] = 0;
+          } else {
+            const c = (1 - r - k) / (1 - k);
+            const m = (1 - g - k) / (1 - k);
+            const y = (1 - b - k) / (1 - k);
+            pixels[i]     = Math.round(255 * (1 - c) * (1 - k));
+            pixels[i + 1] = Math.round(255 * (1 - m) * (1 - k));
+            pixels[i + 2] = Math.round(255 * (1 - y) * (1 - k));
+          }
+        }
+        ctx.putImageData(imageData, 0, 0);
+      }
+
       offscreen.toBlob((blob) => {
         const link = document.createElement('a');
         link.href = URL.createObjectURL(blob);
@@ -158,8 +199,75 @@ export default function PreviewScreen({ navigate }) {
   function printFinal() {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const finalMmWidth = output.mmWidth + (includeBleed ? previewBleed * 2 : 0);
-    const finalMmHeight = output.mmHeight + (includeBleed ? previewBleed * 2 : 0);
+
+    // For CMYK mode, create a converted copy of the canvas
+    let printCanvas = canvas;
+    if (colorMode === 'cmyk') {
+      printCanvas = document.createElement('canvas');
+      printCanvas.width = canvas.width;
+      printCanvas.height = canvas.height;
+      const pCtx = printCanvas.getContext('2d');
+      pCtx.drawImage(canvas, 0, 0);
+      const imageData = pCtx.getImageData(0, 0, printCanvas.width, printCanvas.height);
+      const pixels = imageData.data;
+      for (let i = 0; i < pixels.length; i += 4) {
+        const r = pixels[i] / 255;
+        const g = pixels[i + 1] / 255;
+        const b = pixels[i + 2] / 255;
+        const k = 1 - Math.max(r, g, b);
+        if (k >= 1) {
+          pixels[i] = pixels[i + 1] = pixels[i + 2] = 0;
+        } else {
+          const c = (1 - r - k) / (1 - k);
+          const m = (1 - g - k) / (1 - k);
+          const y = (1 - b - k) / (1 - k);
+          pixels[i]     = Math.round(255 * (1 - c) * (1 - k));
+          pixels[i + 1] = Math.round(255 * (1 - m) * (1 - k));
+          pixels[i + 2] = Math.round(255 * (1 - y) * (1 - k));
+        }
+      }
+      pCtx.putImageData(imageData, 0, 0);
+    }
+
+    // Perform strip doubling side-by-side on 4x6 sheet if this is a 2x6 strip preset (height/width ratio > 2.2)
+    const isStrip = output.width > 0 && (output.height / output.width) > 2.2;
+    let finalCanvas = printCanvas;
+
+    if (isStrip) {
+      const doubleCanvas = document.createElement('canvas');
+      doubleCanvas.width = printCanvas.width * 2;
+      doubleCanvas.height = printCanvas.height;
+      const dCtx = doubleCanvas.getContext('2d');
+      dCtx.drawImage(printCanvas, 0, 0);
+      dCtx.drawImage(printCanvas, printCanvas.width, 0);
+      finalCanvas = doubleCanvas;
+    }
+
+    if (isElectron()) {
+      const ps = useStore.getState().printerSettings;
+      const showToast = useStore.getState().showToast;
+      showToast('Sending to printer...', 'info');
+
+      // Double strip prints 2 per sheet. Calculate physical sheets to print.
+      const rawCopies = ps.enabled ? (ps.copies || 1) : 1;
+      const targetCopies = isStrip ? Math.ceil(rawCopies / 2) : rawCopies;
+
+      window.electronAPI.print.printImage({
+        imagePath: finalCanvas.toDataURL('image/png'),
+        silent: ps.enabled && !!ps.deviceName,
+        deviceName: ps.enabled ? ps.deviceName : '',
+        copies: targetCopies
+      })
+      .then(() => {
+        showToast('Printed successfully!', 'success');
+      })
+      .catch(err => {
+        console.error('Print failed:', err);
+        showToast(`Print failed: ${err.message || err}`, 'danger');
+      });
+      return;
+    }
+
     const win = window.open('', '_blank', 'width=900,height=1200');
     if (!win) return;
     win.document.write(`
@@ -167,12 +275,12 @@ export default function PreviewScreen({ navigate }) {
         <head>
           <title>Print Photobooth Strip</title>
           <style>
-            @page { size: ${finalMmWidth}mm ${finalMmHeight}mm; margin: 0; }
-            body { margin: 0; display: grid; place-items: center; min-height: 100vh; background: ${includeBleed ? previewBleedColor : 'white'}; }
-            img { width: ${finalMmWidth}mm; height: ${finalMmHeight}mm; object-fit: contain; }
+            @page { margin: 0; }
+            body, html { margin: 0; padding: 0; width: 100%; height: 100%; }
+            img { width: 100%; height: 100%; display: block; object-fit: fill; }
           </style>
         </head>
-        <body><img src="${canvas.toDataURL('image/png')}" /></body>
+        <body><img src="${finalCanvas.toDataURL('image/png')}" /></body>
       </html>
     `);
     win.document.close();

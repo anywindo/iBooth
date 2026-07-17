@@ -509,6 +509,22 @@ export function CreditsSandbox({ templates = [] }) {
                   {b.name}
                 </div>
               )}
+              {/* Bubble Name Label (Always Visible) */}
+              <div style={{
+                position: 'absolute',
+                top: 'calc(100% + 4px)',
+                left: '50%',
+                transform: 'translateX(-50%)',
+                color: 'var(--text-h)',
+                fontSize: '11px',
+                fontWeight: 600,
+                textAlign: 'center',
+                whiteSpace: 'nowrap',
+                pointerEvents: 'none',
+                textShadow: '0 1px 2px rgba(0,0,0,0.5)'
+              }}>
+                {b.name}
+              </div>
             </div>
           );
         })

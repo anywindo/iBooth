@@ -14,12 +14,14 @@ import TermsScreen from './screens/TermsScreen.jsx';
 import Toast from './components/Toast.jsx';
 import { CookieConsent } from './components/CookieConsent.jsx';
 import { useAuthStore } from './store/authStore';
+import { isElectron } from './core/platform.js';
+import { UpdateManager } from './components/UpdateManager.jsx';
 
 const ProtectedRoute = ({ children, redirectTo = '/catalog' }) => {
   const { isAuthenticated } = useAuthStore();
   const location = useLocation();
   
-  if (!isAuthenticated) {
+  if (!isAuthenticated && !isElectron()) {
     return <Navigate to={redirectTo} state={{ from: location }} replace />;
   }
   return children;
@@ -32,6 +34,12 @@ function AppContent() {
   const isLoading = useAuthStore(state => state.isLoading);
 
   useEffect(() => {
+    // In Electron, auth is immediate and local
+    if (isElectron()) {
+      checkAuth();
+      return;
+    }
+
     // Supabase's onAuthStateChange will automatically fire INITIAL_SESSION
     // which updates authStore and sets isLoading to false.
     // However, if Supabase is completely non-responsive, we forcefully unlock the UI.
@@ -43,7 +51,7 @@ function AppContent() {
     }, 5000);
     
     return () => clearTimeout(failsafe);
-  }, []);
+  }, [checkAuth]);
 
   if (isLoading) {
     return <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', color: '#fff' }}>Loading iBooth...</div>;
@@ -89,6 +97,7 @@ export default function App() {
       <AppContent />
       <CookieConsent />
       <Toast />
+      <UpdateManager />
     </BrowserRouter>
   );
 }

@@ -1,11 +1,17 @@
 ## [0.0.1-beta] - 2026-07-N/A - Cloud Integration, UI Polish & Fixes
 
+### Known Bugs
+- When printing 4x6 copies on the desktop versions, it only prints 1 page instead of N pages.
+- When printing a 2×6 photo strip with bleed enabled (where the print option automatically places two strips on a single page), the bleed is currently applied to each individual strip. Instead, the bleed should be applied around the outer edges of the entire page layout, wrapping both strips as a single print composition.
+
+### Changelogs
 - Improved the UX/UI.
 - Enhanced our photo strip editor and made significant improvements to its stability and functionality.
 - Security is key! New user sign-ups now require email confirmation to verify identity before logging in.
 - We've added strict password requirements (uppercase, lowercase, number, and special character) to keep accounts secure.
 - Added custom HTML email templates for all auth emails (Welcome, Reset Password, Magic Links, and Verification Codes) powered by Resend.
 - We've added one-click OAuth login! You can now securely sign up and log in using your Google account right from the authentication modal.
+- Integrated Cloudflare Turnstile to provide privacy-first, frictionless bot protection during authentication instead of Google reCAPTCHA.
 - Fixed an issue that prevented you from saving a customized version of catalog templates to your account.
 - Overhauled save permissions to make saving custom templates completely smooth and error-free.
 - When you delete a template, we now automatically clean up and remove its saved frame image from the cloud to keep storage tidy.
@@ -20,9 +26,15 @@
 - Added more layout theme options (including Graduation, Movie, Anniversary, Retro, etc.) in the Editor and synced them with the Gemini AI metadata generation.
 - Implemented a seamless infinite scroll loop on the landing page carousel for a smoother continuous viewing experience.
 - Refined the Contributors Sandbox with a fully responsive flat aesthetic and seamless light/dark mode theming.
+- Added CMYK (Print) color mode support for both downloads and printing across Web and Electron apps.
+- Web version now features a simulated CMYK gamut conversion for accurate print preview colors using canvas pixel manipulation.
+- Web printing layout has been completely overhauled to match Electron's borderless template (zero margins, image stretches to fill the selected paper size).
+- Added a new "Printer Settings" section to the User Profile (Electron only) with silent printing capabilities and a dedicated printer selection dropdown.
+
 
 ## [0.0.1-alpha] - 2026-07-15 - Initial Project Release
 
+### Changelogs
 - We launched a brand new home page! It features a cool dark theme and two columns of photos that scroll endlessly up and down. As you scroll down the page, different sections smoothly slide into view.
 - We built a full photo strip creator. You can open a design studio right in your browser, pick colors, adjust sizes, and see exactly what your photo strip will look like before you save it.
 - You can now browse a huge, full-screen catalog of photo strip templates to find inspiration or a starting point for your own designs.

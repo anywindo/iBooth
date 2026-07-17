@@ -1,7 +1,8 @@
 import { create } from 'zustand';
-import { DEFAULT_PRESET_ID, OUTPUT, SESSION_KEY, STORAGE_KEY, THEME_KEY, applyTheme, getCanvasPreset, getInitialTheme } from "./constants.js";
+import { DEFAULT_PRESET_ID, OUTPUT, SESSION_KEY, STORAGE_KEY, THEME_KEY, PRINTER_SETTINGS_KEY, applyTheme, getCanvasPreset, getInitialTheme } from "./constants.js";
 import { supabase } from '../utils/supabase.js';
 import { useAuthStore } from '../store/authStore.js';
+import { isElectron } from './platform.js';
 
 // Utility to generate a unique ID
 export function uid() {
@@ -28,11 +29,12 @@ export function createDefaultTemplate() {
 }
 
 export function normalizeTemplate(template) {
-  const preset = getCanvasPreset(template.presetId);
+  const presetId = template.presetId || template.preset_id;
+  const preset = getCanvasPreset(presetId);
   const slots = Array.isArray(template.slots) ? template.slots : [];
   return {
     ...template,
-    presetId: template.presetId || preset.id,
+    presetId: presetId || preset.id,
     dpi: Number(template.dpi) || preset.dpi || 300,
     width: Number(template.width) || preset.width,
     height: Number(template.height) || preset.height,
@@ -137,6 +139,11 @@ export const useStore = create((set, get) => {
     previewZoom: 0.44,
     theme: initialTheme,
     toast: { message: '', type: 'info', visible: false, id: null },
+    printerSettings: (() => {
+      try {
+        return JSON.parse(localStorage.getItem(PRINTER_SETTINGS_KEY)) || { enabled: false, deviceName: '', copies: 1 };
+      } catch { return { enabled: false, deviceName: '', copies: 1 }; }
+    })(),
 
     setTemplate: (template) => set({ template }),
     setSelectedSlotId: (id) => set({ selectedSlotId: id }),
@@ -171,6 +178,13 @@ export const useStore = create((set, get) => {
         set((state) => ({ ...state, toast: { ...state.toast, visible: false } }));
         toastTimeoutId = null;
       }, 5000);
+    },
+
+    setPrinterSettings: (settings) => {
+      set({ printerSettings: settings });
+      try {
+        localStorage.setItem(PRINTER_SETTINGS_KEY, JSON.stringify(settings));
+      } catch {}
     },
 
     resetTemplate: () => {
@@ -255,6 +269,43 @@ export const useStore = create((set, get) => {
 
     fetchTemplates: async (userId) => {
       try {
+        if (isElectron()) {
+          const localTemplates = await window.electronAPI.templates.list();
+          const normalizedLocal = localTemplates.map(normalizeTemplate);
+          
+          if (userId && userId !== 'local') {
+            // Merge with cloud templates for this user
+            const { data, error } = await supabase
+              .from('templates')
+              .select(`*, profiles!templates_owner_id_fkey(display_name)`)
+              .eq('owner_id', userId)
+              .order('created_at', { ascending: false });
+              
+            if (!error && data) {
+              const cloudTemplates = data.map(t => {
+                const tNormalized = { ...t };
+                tNormalized.creator_name = t.profiles?.display_name || 'Unknown User';
+                return normalizeTemplate(tNormalized);
+              });
+              
+              const merged = [...normalizedLocal];
+              const localIds = new Set(normalizedLocal.map(t => t.id));
+              const localCloudIds = new Set(normalizedLocal.map(t => t.cloud_id).filter(Boolean));
+              
+              cloudTemplates.forEach(ct => {
+                if (!localIds.has(ct.id) && !localCloudIds.has(ct.id)) {
+                  merged.push(ct);
+                }
+              });
+              
+              merged.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+              return { success: true, data: merged };
+            }
+          }
+          
+          return { success: true, data: normalizedLocal };
+        }
+
         let query = supabase
           .from('templates')
           .select(`
@@ -283,8 +334,113 @@ export const useStore = create((set, get) => {
       }
     },
 
+    fetchCloudTemplates: async () => {
+      try {
+        let query = supabase
+          .from('templates')
+          .select(`
+            *,
+            profiles!templates_owner_id_fkey(display_name)
+          `)
+          .order('created_at', { ascending: false });
+
+        const { data, error } = await query;
+        if (error) throw error;
+
+        const templates = data.map(t => {
+          const tNormalized = { ...t };
+          tNormalized.creator_name = t.profiles?.display_name || 'Unknown User';
+          return normalizeTemplate(tNormalized);
+        });
+
+        return { success: true, data: templates };
+      } catch (error) {
+        return { success: false, error: error.message };
+      }
+    },
+
+    uploadTemplateToCloud: async (template) => {
+      try {
+        const { data: { user }, error: authError } = await supabase.auth.getUser();
+        if (authError || !user) {
+          return { success: false, error: 'You must be logged in to upload to the cloud.' };
+        }
+        
+        let publicUrl = template.frameImage || template.frame_image_url || null;
+        
+        if (publicUrl && publicUrl.startsWith('data:')) {
+          const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
+          const uploadPreset = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET;
+          if (!cloudName || !uploadPreset) return { success: false, error: "Cloudinary credentials missing" };
+          
+          const formData = new FormData();
+          formData.append('file', publicUrl);
+          formData.append('upload_preset', uploadPreset);
+          formData.append('folder', `ibooth/templates/${user.id}`);
+          
+          const uploadRes = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
+            method: 'POST', body: formData,
+          });
+          
+          if (!uploadRes.ok) throw new Error("Cloudinary Upload Error");
+          const uploadData = await uploadRes.json();
+          publicUrl = uploadData.secure_url || uploadData.url;
+        }
+        
+        const toSave = {
+          id: template.id,
+          owner_id: user.id,
+          name: template.name,
+          preset_id: template.presetId,
+          dpi: template.dpi,
+          width: template.width,
+          height: template.height,
+          slots: template.slots,
+          frame_image_url: publicUrl,
+          description: template.description,
+          tags: template.tags,
+          theme: template.theme,
+          color_style: template.colorStyle,
+          updated_at: new Date().toISOString(),
+          created_at: template.created_at || new Date().toISOString()
+        };
+        
+        const { data, error } = await supabase.from('templates').upsert(toSave, { onConflict: 'id' }).select().single();
+        if (error) throw new Error(error.message);
+        
+        if (isElectron()) {
+          await window.electronAPI.templates.delete(template.id);
+          return { success: true, data: normalizeTemplate(data) };
+        }
+        
+        return { success: true, data: normalizeTemplate(data) };
+      } catch (error) {
+        return { success: false, error: error.message };
+      }
+    },
+
     saveTemplate: async (template, userId, frameFile = null) => {
       try {
+        if (isElectron()) {
+          const isCloudTemplate = template.is_cloud || (template.owner_id && template.owner_id !== 'local');
+          if (!isCloudTemplate) {
+            const finalId = template.id === 'default-template' ? crypto.randomUUID() : template.id;
+            const toSave = {
+              ...template,
+              id: finalId,
+              owner_id: 'local',
+              updated_at: new Date().toISOString()
+            };
+            if (!toSave.created_at) toSave.created_at = new Date().toISOString();
+            
+            const savedData = await window.electronAPI.templates.save(toSave);
+            const savedTemplate = normalizeTemplate(savedData);
+            get().setTemplate(savedTemplate);
+            get().saveTemplateQuietly();
+            return { success: true, data: savedTemplate };
+          }
+        }
+
         const {
           data: { user },
           error: authError
@@ -379,9 +535,18 @@ export const useStore = create((set, get) => {
       }
     },
 
-     deleteTemplate: async (templateId, userId) => {
-       if (!templateId || templateId === 'default-template') return { success: false, error: 'Invalid template ID' };
-       try {
+      deleteTemplate: async (templateId, userId) => {
+        if (!templateId || templateId === 'default-template') return { success: false, error: 'Invalid template ID' };
+        try {
+          if (isElectron()) {
+            const localTemplates = await window.electronAPI.templates.list();
+            const isLocal = localTemplates.some(t => t.id === templateId);
+            if (isLocal) {
+              await window.electronAPI.templates.delete(templateId);
+              return { success: true };
+            }
+          }
+
          // Fetch the template first to get its frame_image_url
          const { data: templateData, error: fetchError } = await supabase
            .from('templates')
