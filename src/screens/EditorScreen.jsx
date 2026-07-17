@@ -8,7 +8,7 @@ import { Button } from '../components/Button.jsx';
 import { analyzeFrameSlots } from '../core/frameSlotAi.js';
 import { motion } from 'framer-motion';
 import { useAuthStore } from '../store/authStore.js';
-import { isElectron, isMac } from '../core/platform.js';
+import { isElectron, isMac, getLocalMediaUrl } from '../core/platform.js';
 import { compressToTransparentWebp } from '../utils/compressor.js';
 
 const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
@@ -1096,7 +1096,7 @@ Instructions:
                 outline: bleedPixels > 0 ? `${bleedPixels}px solid ${template.bleedColor || '#ffffff'}` : 'none'
               }}
             >
-              <div className="frame-layer" style={template.frameImage ? { backgroundImage: `url(${template.frameImage})` } : undefined} />
+              <div className="frame-layer" style={template.frameImage ? { backgroundImage: `url(${getLocalMediaUrl(template.frameImage)})` } : undefined} />
               <div className="slot-layer">
                 {template.slots.map((slot, index) => (
                   <div

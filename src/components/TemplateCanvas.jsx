@@ -23,7 +23,7 @@ function drawBaseFrame(template, context) {
 async function drawFrameOverlay(template, context) {
   if (template.frameImage) {
     try {
-      const image = await loadImage(template.frameImage);
+      const image = await loadImage(getLocalMediaUrl(template.frameImage));
       context.drawImage(image, 0, 0, template.width, template.height);
     } catch {
       return;
@@ -84,6 +84,8 @@ function drawFittedImage(context, image, x, y, width, height, fit, mirror) {
   }
   context.restore();
 }
+
+import { getLocalMediaUrl } from '../core/platform';
 
 function loadImage(src) {
   return new Promise((resolve, reject) => {

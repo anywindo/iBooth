@@ -1,6 +1,10 @@
 import { contextBridge, ipcRenderer } from 'electron';
 
+const localPortArg = process.argv.find(arg => arg.startsWith('--local-server-port='));
+const localPort = localPortArg ? parseInt(localPortArg.split('=')[1], 10) : 0;
+
 contextBridge.exposeInMainWorld('electronAPI', {
+  localServerPort: localPort,
   platform: {
     isElectron: true,
     platform: process.platform // 'darwin' or 'win32'

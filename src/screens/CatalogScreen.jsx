@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState, useRef } from 'react';
-import { Image as ImageIcon, Search, Trash2, X, ZoomIn, ZoomOut, RotateCcw, CloudOff, CloudUpload } from 'lucide-react';
+import { Image as ImageIcon, Search, Trash2, X, ZoomIn, ZoomOut, RotateCcw, CloudOff, CloudUpload, Plus, Maximize, Edit2, Check, Download, Info } from 'lucide-react';
+import { getLocalMediaUrl } from '../core/platform';
 import { motion, AnimatePresence, useMotionValue, useSpring, useTransform } from 'framer-motion';
 import { useStore, normalizeTemplate } from '../core/useStore.js';
 import { AppShell } from '../components/AppShell.jsx';
@@ -68,7 +69,7 @@ export const TemplateThumbnail = ({ template }) => {
         }} />
       ))}
       {(template.frameImage || template.frame_image_url) && (
-        <img src={template.frameImage || template.frame_image_url} alt={template.name} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'contain', pointerEvents: 'none' }} draggable="false" />
+        <img src={getLocalMediaUrl(template.frameImage || template.frame_image_url)} alt={template.name} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'contain', pointerEvents: 'none' }} draggable="false" />
       )}
     </div>
   );

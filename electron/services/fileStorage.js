@@ -103,5 +103,5 @@ export async function importFrame(window) {
   const destPath = path.join(userDataPath, 'templates/frames', fileName);
 
   fs.copyFileSync(sourcePath, destPath);
-  return `file://${destPath}`;
+  return destPath;
 }

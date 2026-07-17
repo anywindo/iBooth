@@ -30,6 +30,9 @@
 - Web version now features a simulated CMYK gamut conversion for accurate print preview colors using canvas pixel manipulation.
 - Web printing layout has been completely overhauled to match Electron's borderless template (zero margins, image stretches to fill the selected paper size).
 - Added a new "Printer Settings" section to the User Profile (Electron only) with silent printing capabilities and a dedicated printer selection dropdown.
+- Fixed a critical Electron crash related to Cloudflare Turnstile verification.
+- Completely overhauled Electron's backend security by enforcing strict sandbox policies and dropping previous insecure renderer workarounds.
+- Introduced a built-in local HTTP server proxy in Electron to seamlessly handle custom local frames with complete offline capabilities.
 
 
 ## [0.0.1-alpha] - 2026-07-15 - Initial Project Release

@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, ZoomIn, ZoomOut, RotateCcw, CloudUpload } from 'lucide-react';
+import { X, ZoomIn, ZoomOut, RotateCcw, CloudUpload, Play } from 'lucide-react';
+import { getLocalMediaUrl } from '../core/platform';
 import { Button } from './Button.jsx';
 
 export const formatTemplateDate = (dateString) => {
@@ -95,7 +96,7 @@ export const InteractivePreview = ({ template, style }) => {
             </div>
           ))}
           {(template.frameImage || template.frame_image_url) && (
-            <img src={template.frameImage || template.frame_image_url} alt="frame" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none' }} draggable="false" />
+            <img src={getLocalMediaUrl(template.frameImage || template.frame_image_url)} alt="frame" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none' }} draggable="false" />
           )}
 
           {/* Specular Shine */}

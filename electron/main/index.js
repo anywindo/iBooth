@@ -1,5 +1,7 @@
 import { app, BrowserWindow, shell, ipcMain, Menu, nativeTheme } from 'electron';
-import { join } from 'path';
+import { join, extname } from 'path';
+import http from 'http';
+import fs from 'fs';
 import { electronApp, optimizer, is } from '@electron-toolkit/utils';
 import { autoUpdater } from 'electron-updater';
 import { initStorage, listTemplates, saveTemplate, deleteTemplate, importFrame } from '../services/fileStorage.js';
@@ -9,6 +11,81 @@ import { getSyncState, saveSyncState } from '../services/sync.js';
 import icon from '../../build/icon.png?asset';
 import logoDark from '../../src/assets/ibootlogo-cw.png?asset';
 import logoLight from '../../src/assets/ibootlogo-cb.png?asset';
+
+let localServerPort = 0;
+
+function startLocalServer() {
+  return new Promise((resolve) => {
+    const server = http.createServer((req, res) => {
+      try {
+        const parsedUrl = new URL(req.url, `http://127.0.0.1`);
+        
+        // Handle local media securely without file://
+        if (parsedUrl.pathname.startsWith('/local-media')) {
+          const filePath = parsedUrl.searchParams.get('path');
+          if (!filePath || !fs.existsSync(filePath)) {
+            res.writeHead(404);
+            res.end('Not found');
+            return;
+          }
+          
+          const ext = extname(filePath).toLowerCase();
+          const mimeTypes = {
+            '.png': 'image/png',
+            '.jpg': 'image/jpeg',
+            '.jpeg': 'image/jpeg',
+            '.gif': 'image/gif',
+            '.svg': 'image/svg+xml'
+          };
+          
+          res.writeHead(200, {
+            'Content-Type': mimeTypes[ext] || 'application/octet-stream',
+            'Access-Control-Allow-Origin': '*'
+          });
+          fs.createReadStream(filePath).pipe(res);
+          return;
+        }
+
+        // Handle production static files (replaces file:// origin for Turnstile)
+        if (!is.dev) {
+          let reqPath = parsedUrl.pathname;
+          if (reqPath === '/') reqPath = '/index.html';
+          
+          let staticPath = join(__dirname, '../renderer', reqPath);
+          if (!fs.existsSync(staticPath)) {
+            staticPath = join(__dirname, '../renderer/index.html'); // SPA fallback
+          }
+          
+          const ext = extname(staticPath).toLowerCase();
+          const mimeTypes = {
+            '.html': 'text/html',
+            '.js': 'text/javascript',
+            '.css': 'text/css',
+            '.png': 'image/png',
+            '.jpg': 'image/jpeg',
+            '.svg': 'image/svg+xml',
+            '.json': 'application/json',
+            '.mp3': 'audio/mpeg'
+          };
+          res.writeHead(200, { 'Content-Type': mimeTypes[ext] || 'text/plain' });
+          fs.createReadStream(staticPath).pipe(res);
+          return;
+        }
+
+        res.writeHead(404);
+        res.end();
+      } catch (e) {
+        res.writeHead(500);
+        res.end(e.message);
+      }
+    });
+
+    server.listen(0, '127.0.0.1', () => {
+      localServerPort = server.address().port;
+      resolve();
+    });
+  });
+}
 
 function createWindow() {
   const iconPath = icon;
@@ -26,13 +103,21 @@ function createWindow() {
     icon: iconPath,
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
-      sandbox: false,
-      webSecurity: false // allow file:// loading for local images
+      sandbox: true,
+      contextIsolation: true,
+      nodeIntegration: false,
+      webSecurity: true, // Secure defaults enabled
+      additionalArguments: [`--local-server-port=${localServerPort}`]
     }
   });
 
   mainWindow.on('ready-to-show', () => {
     mainWindow.show();
+    mainWindow.webContents.openDevTools();
+  });
+
+  mainWindow.webContents.on('console-message', (event, level, message, line, sourceId) => {
+    console.log(`[Renderer Console] ${message} (at ${sourceId}:${line})`);
   });
 
   // Open external links in the default browser
@@ -47,7 +132,7 @@ function createWindow() {
   if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
     mainWindow.loadURL(process.env['ELECTRON_RENDERER_URL']);
   } else {
-    mainWindow.loadFile(join(__dirname, '../renderer/index.html'));
+    mainWindow.loadURL(`http://127.0.0.1:${localServerPort}`);
   }
   
   return mainWindow;
@@ -55,7 +140,8 @@ function createWindow() {
 
 app.setName('iBooth');
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
+  await startLocalServer();
   // Set app user model id for Windows
   electronApp.setAppUserModelId('com.ibooth.app');
 
