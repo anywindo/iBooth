@@ -22,19 +22,56 @@ iBooth combines a live camera capture booth, a visual template editor, and nativ
 
 ## 🚀 Download & Install
 
-You don't need to build from source to use iBooth! We provide pre-compiled installers for macOS and Windows.
+You don't need to build from source to use iBooth! Pre-built installers are available for macOS and Windows.
 
 1. Go to the [**Releases**](https://github.com/anywindo/iBooth/releases/) page.
 2. Download the installer for your operating system:
-   * **Mac (Apple Silicon)**: `iBooth-x.x.x-mac-arm64.dmg`
-   * **Mac (Intel)**: `iBooth-x.x.x-mac-x64.dmg`
-   * **Windows**: `iBooth-x.x.x-win-x64.exe`
-3. Run the installer and launch the app!
+   - **macOS (Apple Silicon)**: `iBooth-x.x.x-mac-arm64.dmg`
+   - **macOS (Intel)**: `iBooth-x.x.x-mac-x64.dmg`
+   - **Windows**: `iBooth-x.x.x-win-x64.exe`
+3. Run the installer and launch iBooth.
 
-*(Note: On macOS, if you receive an "unidentified developer" warning, **Right-Click -> Open** the app to bypass Gatekeeper).*
+### macOS: "App is damaged" or "Unidentified Developer"
+
+Because iBooth is currently distributed without Apple notarization, macOS may prevent it from opening.
+
+#### Method 1 (Recommended)
+
+1. Open **System Settings → Privacy & Security**.
+2. Scroll down to the **Security** section.
+3. Click **Open Anyway** next to the blocked iBooth message.
+4. Confirm by clicking **Open**.
+
+Alternatively, after downloading:
+
+1. Right-click **iBooth.app**.
+2. Select **Open**.
+3. Click **Open** in the confirmation dialog.
+
+#### Method 2 (Terminal)
+
+If the app is still blocked, remove the quarantine attribute:
+
+```bash
+sudo xattr -rd com.apple.quarantine "/Applications/iBooth.app"
+```
+
+If macOS reports that the app is damaged or the signature is invalid, apply an ad-hoc signature:
+
+```bash
+sudo codesign \
+  --force \
+  --deep \
+  --sign - \
+  "/Applications/iBooth.app"
+```
+
+Then launch the app again.
+
+> **Note**
+> These commands only modify the local copy on your Mac. They do **not** require an Apple Developer account or certificate.
 
 ---
-
 ## 🛠️ Local Development
 
 Want to contribute or build your own version of iBooth? The project is built with **React 19**, **Vite**, and **Electron**.
